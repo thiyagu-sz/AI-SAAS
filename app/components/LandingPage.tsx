@@ -37,7 +37,7 @@ export default function LandingPage() {
               onClick={() => router.push('/signup')}
               className="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-5 bg-primary hover:bg-primary-dark text-white text-sm font-bold transition-all shadow-glow"
             >
-              Get Started
+              Get StartedD
             </button>
           </div>
         </div>
