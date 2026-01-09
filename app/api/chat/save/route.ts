@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Messages array is required and must not be empty' }, { status: 400 });
     }
 
-    let conversation;
+    let conversation: { id: string; title?: string } | null = null;
 
     if (conversationId) {
       // Update existing conversation
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
 
       if (newMessages.length > 0) {
         const messagesToInsert = newMessages.map((msg: { role: string; content: string; sources?: any }) => ({
-          conversation_id: conversationId,
+          conversation_id: conversation!.id,
           role: msg.role,
           content: msg.content,
           sources: msg.sources || null,
@@ -133,11 +133,11 @@ export async function POST(request: NextRequest) {
         }, { status: 500 });
       }
 
-      conversation = newConv;
+      conversation = newConv as { id: string; title?: string };
 
       // Insert all messages for new conversation
       const messagesToInsert = messages.map((msg: { role: string; content: string; sources?: any }) => ({
-        conversation_id: conversation.id,
+        conversation_id: conversation!.id,
         role: msg.role,
         content: msg.content,
         sources: msg.sources || null,
@@ -155,7 +155,7 @@ export async function POST(request: NextRequest) {
           hint: messagesError?.hint || null
         });
         // Try to delete the conversation if messages fail
-        await supabase.from('chat_conversations').delete().eq('id', conversation.id);
+        await supabase.from('chat_conversations').delete().eq('id', conversation!.id);
         const errorMessage = messagesError?.message || messagesError?.code || 'Failed to save messages';
         return NextResponse.json({ 
           error: 'Failed to save messages',
@@ -164,7 +164,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ id: conversation.id, title: conversation.title });
+    return NextResponse.json({ id: conversation!.id, title: conversation!.title });
   } catch (error) {
     console.error('Save chat error:', error);
     return NextResponse.json(

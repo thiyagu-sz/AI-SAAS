@@ -48,7 +48,7 @@ export default function SavedItemsPage() {
     try {
       // Load saved folder IDs from localStorage
       const saved = localStorage.getItem('savedFolders');
-      const savedIds = saved ? new Set(JSON.parse(saved)) : new Set<string>();
+      const savedIds = saved ? new Set<string>(JSON.parse(saved) as string[]) : new Set<string>();
       setSavedFolderIds(savedIds);
 
       if (savedIds.size === 0) {

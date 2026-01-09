@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {
@@ -11,8 +11,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Missing Supabase configuration' }, { status: 500 });
     }
 
+    // Use Next.js cookies() and createServerClient from @supabase/ssr for server-side auth
     const cookieStore = await cookies();
-    const supabase = createClient(
+
+    const supabase = createServerClient(
       supabaseUrl,
       supabaseAnonKey,
       {
@@ -20,8 +22,22 @@ export async function GET(request: NextRequest) {
           get(name: string) {
             return cookieStore.get(name)?.value;
           },
+          set(name: string, value: string, options?: any) {
+            try {
+              // Next.js RequestCookies is read-only in route handlers; no-op for server-side flows
+            } catch (e) {
+              // noop
+            }
+          },
+          remove(name: string) {
+            try {
+              // No-op; server route cookie deletion requires response header manipulation
+            } catch (e) {
+              // noop
+            }
+          },
         },
-      } as any
+      }
     );
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { getSupabaseClient } from '@/app/lib/supabase';
 import Sidebar from '@/app/components/Sidebar';
 import { renderMarkdown } from '@/app/lib/markdown';
@@ -32,7 +32,6 @@ type FormatType = 'key-points' | 'main-concepts' | 'exam-points' | 'short-notes'
 
 export default function ChatPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [user, setUser] = useState<{ id: string; email?: string; user_metadata?: { full_name?: string } } | null>(null);
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -63,8 +62,8 @@ export default function ChatPage() {
 
       setUser(currentUser);
       
-      // Load conversation if ID is in URL
-      const conversationId = searchParams.get('id');
+      // Load conversation if ID is in URL (use window.location.search to avoid useSearchParams prerender issue)
+      const conversationId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('id') : null;
       if (conversationId) {
         await loadConversation(conversationId);
         setCurrentConversationId(conversationId);
@@ -75,7 +74,7 @@ export default function ChatPage() {
     };
 
     checkAuth();
-  }, [router, searchParams]);
+  }, [router]);
 
   // Try to restore draft immediately on mount (before auth completes). Skip if URL contains a conversation id.
   useEffect(() => {
