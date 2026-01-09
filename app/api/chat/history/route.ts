@@ -13,13 +13,17 @@ export async function GET(request: NextRequest) {
 
     // Create Supabase client with cookie support (primary auth method for server routes)
     const cookieStore = await cookies();
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
+    const supabase = createClient(
+      supabaseUrl,
+      supabaseAnonKey,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
         },
-      },
-    });
+      } as any
+    );
 
     // Try cookie-based auth first (most reliable for Next.js server routes)
     let user = null;
