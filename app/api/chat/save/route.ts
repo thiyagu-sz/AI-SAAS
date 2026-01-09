@@ -12,13 +12,17 @@ export async function POST(request: NextRequest) {
     }
 
     const cookieStore = await cookies();
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
+    const supabase = createClient(
+      supabaseUrl,
+      supabaseAnonKey,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
         },
-      },
-    });
+      } as any
+    );
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
