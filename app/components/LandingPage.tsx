@@ -67,7 +67,7 @@ export default function LandingPage() {
               onClick={() => router.push('/signup')}
               className="flex min-w-[140px] cursor-pointer items-center justify-center rounded-lg h-12 px-6 bg-primary hover:bg-primary-dark text-white text-base font-bold transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
             >
-              Try for Free
+              Try for FreeEE
             </button>
             <button
               onClick={scrollToFeatures}
