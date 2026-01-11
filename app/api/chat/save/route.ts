@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
 export async function POST(request: NextRequest) {
@@ -11,20 +12,38 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing Supabase configuration' }, { status: 500 });
     }
 
+    // Prefer server-side helper with cookie adapter
     const cookieStore = await cookies();
-    const supabase = createClient(
-      supabaseUrl,
-      supabaseAnonKey,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
+    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
         },
-      } as any
-    );
+        set(name: string, value: string, options?: any) {
+          // RequestCookies in Next.js route handlers are read-only; no-op
+        },
+        remove(name: string) {
+          // no-op
+        },
+      },
+    });
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // If no user via cookies, we'll later try Authorization bearer token fallback
+    let { data: { user }, error: userError } = await supabase.auth.getUser();
+    // Fallback: if cookie-based auth failed, try bearer token from header
+    if ((userError || !user) && request.headers.get('Authorization')?.startsWith('Bearer ')) {
+      const authHeader = request.headers.get('Authorization')!;
+      const token = authHeader.substring(7);
+      const tokenClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+      });
+      const tokenAuth = await tokenClient.auth.getUser();
+      if (tokenAuth.data.user && !tokenAuth.error) {
+        user = tokenAuth.data.user;
+        userError = null as any;
+      }
+    }
+
     if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

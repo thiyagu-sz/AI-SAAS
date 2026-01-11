@@ -50,6 +50,13 @@ export default function ChatPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasMountedRef = useRef(false);
 
+  // Remove raw markdown bold markers that break UI (e.g. **bold**) and strip '*' and '#'
+  const sanitizeContent = (text: string | undefined | null) => {
+    if (!text) return '';
+    // remove double-asterisks first, then any remaining asterisks or hash characters
+    return text.replace(/\*\*/g, '').replace(/[*#]+/g, '');
+  };
+
   useEffect(() => {
     const checkAuth = async () => {
       const supabase = getSupabaseClient();
@@ -147,6 +154,7 @@ export default function ChatPage() {
       if (parsed && Array.isArray(parsed.messages) && parsed.messages.length > 0) {
         const restored: Message[] = parsed.messages.map((m: any) => ({
           ...m,
+          content: sanitizeContent(m.content),
           // restore timestamp strings back to Date objects
           timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
         }));
@@ -184,7 +192,7 @@ export default function ChatPage() {
         const loadedMessages: Message[] = data.messages.map((msg: any) => ({
           id: msg.id,
           role: msg.role,
-          content: msg.content,
+          content: sanitizeContent(msg.content),
           sources: msg.sources,
           timestamp: new Date(msg.created_at),
         }));
@@ -463,7 +471,7 @@ ${userInput}`,
                   break;
                 }
                 if (parsed.content) {
-                  assistantMessage.content += parsed.content;
+                  assistantMessage.content += sanitizeContent(parsed.content);
                   setMessages((prev) => {
                     const updated = [...prev];
                     updated[updated.length - 1] = { ...assistantMessage };
@@ -515,6 +523,22 @@ ${userInput}`,
 
       let conversationId = currentConversationId;
 
+      // Helper to extract useful error info from a non-OK response
+      const extractError = async (res: Response) => {
+        let body: any = null;
+        try {
+          const text = await res.text();
+          try {
+            body = JSON.parse(text);
+          } catch {
+            body = text;
+          }
+        } catch (e) {
+          body = null;
+        }
+        return { status: res.status, body };
+      };
+
       // Create conversation if it doesn't exist
       if (!conversationId) {
         // Generate title from first user message
@@ -550,27 +574,17 @@ ${userInput}`,
             window.dispatchEvent(new CustomEvent('chatSaved'));
           }, 300);
         } else {
-          let errorMessage = 'Failed to create conversation';
-          try {
-            const errorData = await createResponse.json();
-            // Check if error object has content
-            if (errorData && typeof errorData === 'object') {
-              errorMessage = errorData.error || errorData.details || errorMessage;
-              // Only log if error has meaningful content
-              const errorKeys = Object.keys(errorData);
-              if (errorKeys.length > 0 && (errorData.error || errorData.details)) {
-                console.error('Error creating conversation:', {
-                  error: errorData.error,
-                  details: errorData.details,
-                  status: createResponse.status
-                });
-              }
+          // Improve logging: include status and body (JSON or text)
+          const info = await extractError(createResponse);
+          console.error('Create conversation failed:', info);
+
+          let errorMessage = `Failed to create conversation (status ${info.status})`;
+          if (info.body) {
+            if (typeof info.body === 'object') {
+              errorMessage = info.body.error || info.body.details || JSON.stringify(info.body) || errorMessage;
+            } else if (typeof info.body === 'string' && info.body.trim()) {
+              errorMessage = info.body;
             }
-          } catch (parseError) {
-            // If JSON parsing fails, try to get text
-            const errorText = await createResponse.text().catch(() => 'Unknown error');
-            errorMessage = errorText || errorMessage;
-            console.error('Error creating conversation (non-JSON):', errorText);
           }
           throw new Error(errorMessage);
         }
@@ -594,31 +608,20 @@ ${userInput}`,
         });
 
         if (!updateResponse.ok) {
-          let errorMessage = 'Failed to save message';
-          try {
-            const errorData = await updateResponse.json();
-            // Check if error object has content
-            if (errorData && typeof errorData === 'object') {
-              errorMessage = errorData.error || errorData.details || errorMessage;
-              // Only log if error has meaningful content
-              const errorKeys = Object.keys(errorData);
-              if (errorKeys.length > 0 && (errorData.error || errorData.details)) {
-                console.error('Error updating conversation:', {
-                  error: errorData.error,
-                  details: errorData.details,
-                  status: updateResponse.status
-                });
-              }
+          const info = await extractError(updateResponse);
+          console.error('Update conversation failed:', info);
+
+          let errorMessage = `Failed to save message (status ${info.status})`;
+          if (info.body) {
+            if (typeof info.body === 'object') {
+              errorMessage = info.body.error || info.body.details || JSON.stringify(info.body) || errorMessage;
+            } else if (typeof info.body === 'string' && info.body.trim()) {
+              errorMessage = info.body;
             }
-          } catch (parseError) {
-            // If JSON parsing fails, try to get text
-            const errorText = await updateResponse.text().catch(() => 'Unknown error');
-            errorMessage = errorText || errorMessage;
-            console.error('Error updating conversation (non-JSON):', errorText);
           }
           throw new Error(errorMessage);
         }
-        
+
         console.log('Message saved to conversation:', conversationId);
         // Clear the local draft now that message is persisted
         try { localStorage.removeItem('ai_chat_draft'); } catch (e) { /* ignore */ }
