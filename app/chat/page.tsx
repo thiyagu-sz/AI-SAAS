@@ -50,11 +50,75 @@ export default function ChatPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasMountedRef = useRef(false);
 
-  // Remove raw markdown bold markers that break UI (e.g. **bold**) and strip '*' and '#'
+  // Helper: Advanced Markdown Parser
+  function parseMarkdownToHtml(markdown: string) {
+    let html = markdown
+      // 1. Sanitize
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      
+      // 2. HEADERS (With Auto-IDs for linking)
+      .replace(/^# (.*$)/gm, '<h1 class="main-title">$1</h1>')
+      .replace(/^## Table of Contents/gm, '<h2 class="toc-title">Table of Contents</h2><div class="toc-list">') // Start TOC div
+      .replace(/^## (.*$)/gm, (match: string, title: string) => {
+          // Create a slug for the ID
+          const slug = title.toLowerCase().replace(/[^\w]+/g, '-');
+          return `<h2 id="${slug}" class="section-title">${title}</h2>`;
+      })
+      .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+      
+      // 3. TABLE OF CONTENTS LIST CLOSING - simple heuristic: close any toc-list before first non-toc h2
+      // We'll close toc-list occurrences later if needed.
+      
+      // 4. BOLD, ITALIC, BLOCKQUOTE
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/^> (.*$)/gm, '<blockquote class="exec-summary">$1</blockquote>')
+      
+      // 5. TABLES (Professional)
+      .replace(/((?:\|.*\|\r?\n)+)/g, (match) => {
+        const rows = match.trim().split('\n');
+        let tableHtml = '<div class="table-wrapper"><table>';
+        rows.forEach((row, i) => {
+          if (row.includes('---')) return;
+          const cols = row.split('|').filter(c => c.trim() !== '');
+          tableHtml += '<tr>' + cols.map(c => 
+            i === 0 ? `<th>${c.trim()}</th>` : `<td>${c.trim()}</td>`
+          ).join('') + '</tr>';
+        });
+        return tableHtml + '</table></div>';
+      })
+      
+      // 6. LISTS
+      .replace(/^\s*[-*]\s+(.*$)/gm, '<ul><li>$1</li></ul>')
+      .replace(/<\/ul>\s*<ul>/g, '') // Merge lists
+      
+      // 7. PARAGRAPHS
+      .replace(/\n\n/g, '<br><br>');
+
+    // Post-processing: Ensure TOC list is closed if present
+    if (html.includes('<div class="toc-list">')) {
+      html = html.replace('<div class="toc-list">', '<div class="toc-list"><ul>');
+      // Insert closing </ul></div> before the first section-title
+      html = html.replace(/<h2 id="([^"]+)" class="section-title">/m, '</ul></div><h2 id="$1" class="section-title">');
+    }
+
+    // Add anchors into the TOC: create list items from section titles
+    const sectionMatches = Array.from(html.matchAll(/<h2 id="([^"]+)" class="section-title">([^<]+)<\/h2>/g));
+    if (sectionMatches.length > 0) {
+      const tocEntries = sectionMatches.map(m => `<li><a href="#${m[1]}">${m[2]}</a></li>`).join('');
+      html = html.replace('</ul></div>', `</ul><div class="toc-entries">${tocEntries}</div></div>`);
+    }
+
+    // Force page break after TOC by adding a page-break div
+    html = html.replace('</div><h2 id', '</div><div class="page-break"></div><h2 id');
+
+    return html;
+  }
+
+  // Remove raw markdown bold markers that break UI (e.g. **bold**)
   const sanitizeContent = (text: string | undefined | null) => {
     if (!text) return '';
-    // remove double-asterisks first, then any remaining asterisks or hash characters
-    return text.replace(/\*\*/g, '').replace(/[*#]+/g, '');
+    return text;
   };
 
   useEffect(() => {
@@ -645,124 +709,523 @@ ${userInput}`,
     }
   };
 
+  // Professional PDF export with clean formatting and content cleaning
+  const generateProfessionalPDF = (markdown: string, title: string) => {
+    // ===== CONTENT CLEANING PHASE =====
+    // 1. Remove URLs completely (https://, http://, www., and any URL-like patterns)
+    let cleanedContent = markdown
+      .replace(/https?:\/\/[^\s)]+/g, '')  // Remove http(s) URLs
+      .replace(/www\.[^\s)]+/g, '')        // Remove www URLs
+      .replace(/[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}[^\s]*/g, (match) => {
+        // Remove domain-like patterns but keep regular words
+        if (match.includes('.com') || match.includes('.org') || match.includes('.net') || 
+            match.includes('.io') || match.includes('.co') || match.includes('.dev') ||
+            match.includes('.app') || match.includes('.site')) {
+          return '';
+        }
+        return match;
+      });
+
+    // 2. Extract title from first heading (## Heading)
+    const h2Match = cleanedContent.match(/^##\s+(.+?)$/m);
+    const docTitle = h2Match ? h2Match[1].trim() : (title || 'Study Notes');
+
+    // 3. Extract intro paragraph (first non-heading, non-empty line)
+    const introLines = cleanedContent
+      .split('\n')
+      .filter(line => {
+        const trimmed = line.trim();
+        return trimmed && 
+               !trimmed.startsWith('#') && 
+               !trimmed.startsWith('>') &&
+               !trimmed.startsWith('-') &&
+               !trimmed.startsWith('*') &&
+               !trimmed.startsWith('|') &&
+               !trimmed.match(/https?:/) &&
+               !trimmed.match(/www\./);
+      });
+    const introParagraph = introLines[0]?.substring(0, 200) || 'Professional Study Notes';
+
+    // ===== MARKDOWN TO HTML PARSING PHASE =====
+    let htmlContent = cleanedContent
+      // First, sanitize HTML special chars
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      // Remove any remaining URLs from HTML content
+      .replace(/https?:\/\/[^\s<>&"']+/g, '')
+      .replace(/www\.[^\s<>&"']+/g, '');
+
+    // Remove H1 headings (# Heading)
+    htmlContent = htmlContent.replace(/^#\s+.+?$/gm, '');
+
+    // Convert H2 (##) to <h2> and remove the ## prefix
+    htmlContent = htmlContent.replace(/^##\s+(.+?)$/gm, '<h2>$1</h2>');
+
+    // Convert H3 (###) to <h3> and remove the ### prefix
+    htmlContent = htmlContent.replace(/^###\s+(.+?)$/gm, '<h3>$1</h3>');
+
+    // Convert bold (**text**) to <strong>
+    htmlContent = htmlContent.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+    // Convert italic (*text*) to <em>
+    htmlContent = htmlContent.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+    // Convert reference numbers [1] to superscript
+    htmlContent = htmlContent.replace(/\[(\d+)\]/g, '<sup>$1</sup>');
+
+    // Convert blockquotes (> text)
+    htmlContent = htmlContent.replace(/^&gt;\s+(.+?)$/gm, '<blockquote>$1</blockquote>');
+
+    // Handle tables
+    htmlContent = htmlContent.replace(/((?:\|.+\|\n?)+)/g, (tableMatch) => {
+      const rows = tableMatch.trim().split('\n').filter(r => r.trim() && !r.includes('---'));
+      if (rows.length === 0) return '';
+      let tableHtml = '<table><tbody>';
+      rows.forEach((row, idx) => {
+        const cells = row.split('|').filter(c => c.trim());
+        const tag = idx === 0 ? 'th' : 'td';
+        tableHtml += `<tr>${cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('')}</tr>`;
+      });
+      return tableHtml + '</tbody></table>';
+    });
+
+    // Convert unordered list items (- or * at start of line)
+    htmlContent = htmlContent.replace(/^\s*[-•]\s+(.+?)$/gm, '<li>$1</li>');
+
+    // Wrap consecutive <li> items in <ul>
+    htmlContent = htmlContent.replace(/(<li>[^<]*<\/li>(\n<li>[^<]*<\/li>)*)/g, (match) => `<ul>${match}</ul>`);
+
+    // Remove duplicate <ul> wrappers
+    htmlContent = htmlContent.replace(/<\/ul>\s*<ul>/g, '');
+
+    // Remove underscore formatting (_text_)
+    htmlContent = htmlContent.replace(/_(.+?)_/g, '$1');
+
+    // Remove backticks (code formatting)
+    htmlContent = htmlContent.replace(/`(.+?)`/g, '$1');
+
+    // Clean up extra whitespace and newlines
+    htmlContent = htmlContent
+      .replace(/\n\n+/g, '</p><p>')  // Multiple newlines become paragraph breaks
+      .replace(/\n/g, ' ')            // Single newlines become spaces
+      .trim();
+
+    // Wrap any remaining text in paragraphs
+    if (!htmlContent.match(/<p>/) && htmlContent.trim()) {
+      htmlContent = `<p>${htmlContent}</p>`;
+    }
+
+    // Convert to tile layout - group h2 headings with content
+    const tileRegex = /<h2>(.+?)<\/h2>([\s\S]*?)(?=<h2>|$)/g;
+    let tiledContent = '';
+    let match;
+    
+    while ((match = tileRegex.exec(htmlContent)) !== null) {
+      const heading = match[1];
+      const content = match[2].trim();
+      tiledContent += `<h2>${heading}</h2><div class="tile">${content}</div>`;
+    }
+    
+    // If no h2 headings found, wrap all content in tiles
+    if (!tiledContent) {
+      const contentBlocks = htmlContent.split('<h3>');
+      tiledContent = contentBlocks.map((block, idx) => {
+        if (idx === 0) return block;
+        return `<div class="tile"><h3>${block}</div>`;
+      }).join('');
+    }
+
+    const dateStr = new Date().toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+
+    const htmlDocument = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Study Notes</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    @media print {
+      @page {
+        size: A4;
+        margin: 2.5cm 2.5cm 2.5cm 2.5cm;
+        margin-top: 0;
+        margin-bottom: 0;
+        margin-header: 0;
+        margin-footer: 0;
+        @top-left {
+          content: "";
+        }
+        @top-center {
+          content: "";
+        }
+        @top-right {
+          content: "";
+        }
+        @bottom-left {
+          content: "";
+        }
+        @bottom-center {
+          content: "";
+        }
+        @bottom-right {
+          content: "";
+        }
+      }
+
+      html, body {
+        width: 100%;
+        height: 100%;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+      }
+
+      body {
+        orphans: 3;
+        widows: 3;
+      }
+    }
+
+    body {
+      font-family: Georgia, 'Times New Roman', serif;
+      font-size: 11pt;
+      line-height: 1.6;
+      color: #000000;
+      background: white;
+      padding: 40px;
+      max-width: 210mm;
+      margin: 0 auto;
+    }
+
+    /* Header Section */
+    .document-header {
+      text-align: center;
+      margin-bottom: 2.5cm;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #000;
+    }
+
+    .logo {
+      width: 60px;
+      height: 60px;
+      margin: 0 auto 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 8px;
+      color: white;
+      font-weight: bold;
+      font-size: 24pt;
+      font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    h1 {
+      font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 32pt;
+      font-weight: bold;
+      color: #000000;
+      margin-bottom: 10px;
+      line-height: 1.2;
+    }
+
+    .document-subtitle {
+      font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 14pt;
+      color: #666666;
+      margin-top: 10px;
+      font-style: italic;
+    }
+
+    /* Intro Section */
+    .intro-section {
+      margin-bottom: 2em;
+      padding: 15px;
+      background-color: #f9f9f9;
+      border-left: 4px solid #667eea;
+    }
+
+    .intro-text {
+      font-size: 11pt;
+      color: #333333;
+      line-height: 1.6;
+      margin-bottom: 0.5em;
+    }
+
+    /* Content - Tile Layout */
+    .content {
+      margin-top: 2em;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5em;
+      page-break-inside: avoid;
+    }
+
+    .tile {
+      background-color: #f9f9f9;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 1.2em;
+      break-inside: avoid;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    h2 {
+      font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 18pt;
+      font-weight: bold;
+      color: #667eea;
+      margin-bottom: 0.8em;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #667eea;
+      page-break-after: avoid;
+      grid-column: 1 / -1;
+    }
+
+    h3 {
+      font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 13pt;
+      font-weight: bold;
+      color: #1a1a1a;
+      margin-bottom: 0.6em;
+      page-break-after: avoid;
+    }
+
+    p {
+      margin-bottom: 0.8em;
+      text-align: left;
+      font-size: 10pt;
+      line-height: 1.5;
+    }
+
+    strong {
+      font-weight: bold;
+      color: #000;
+    }
+
+    em {
+      font-style: italic;
+    }
+
+    sup {
+      font-size: 0.7em;
+      vertical-align: super;
+      line-height: 0;
+    }
+
+    /* Lists */
+    ul, ol {
+      margin-left: 2em;
+      margin-bottom: 1em;
+      padding-left: 0;
+    }
+
+    li {
+      margin-bottom: 0.5em;
+      text-align: justify;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5em 0;
+      font-size: 10pt;
+      break-inside: avoid;
+    }
+
+    th {
+      background-color: #f0f0f0;
+      border: 1px solid #cccccc;
+      padding: 12px;
+      text-align: left;
+      font-weight: bold;
+      color: #000;
+    }
+
+    td {
+      border: 1px solid #cccccc;
+      padding: 10px 12px;
+      text-align: left;
+    }
+
+    tbody tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+
+    /* Blockquotes */
+    blockquote {
+      margin: 1.5em 0;
+      padding-left: 1.5em;
+      border-left: 4px solid #667eea;
+      color: #555555;
+      font-style: italic;
+      page-break-inside: avoid;
+    }
+
+    /* Page Break */
+    .page-break {
+      page-break-before: always;
+      height: 0;
+      margin: 0;
+      padding: 0;
+    }
+
+    .no-break {
+      page-break-inside: avoid;
+    }
+
+    /* Footer */
+    .document-footer {
+      margin-top: 3em;
+      padding-top: 1em;
+      border-top: 1px solid #e0e0e0;
+      text-align: center;
+      font-size: 9pt;
+      color: #999999;
+      page-break-inside: avoid;
+    }
+
+    /* Print-specific adjustments */
+    @media print {
+      body {
+        padding: 0;
+      }
+
+      .document-header {
+        margin-bottom: 2cm;
+        padding-bottom: 15px;
+      }
+
+      h2 {
+        page-break-after: avoid;
+        margin-top: 1.2em;
+      }
+
+      h3 {
+        page-break-after: avoid;
+      }
+
+      p, li, td, blockquote {
+        page-break-inside: avoid;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header Section -->
+  <div class="document-header">
+    <div class="logo">📚</div>
+    <h1>${docTitle}</h1>
+    <p class="document-subtitle">Professional Study Notes</p>
+  </div>
+
+  <!-- Introduction Section -->
+  <div class="intro-section">
+    <p class="intro-text">${introParagraph}</p>
+    <p class="intro-text"><strong>Generated:</strong> ${dateStr}</p>
+  </div>
+
+  <!-- Main Content with Tile Layout -->
+  <div class="content">
+    ${tiledContent}
+  </div>
+
+  <!-- Footer -->
+  <div class="document-footer">
+    <p>This document was automatically generated and is ready for publication.</p>
+  </div>
+</body>
+</html>
+    `;
+
+    return htmlDocument;
+  };
+
   const handleExport = useCallback(async (type: 'pdf' | 'doc', messageContent: string) => {
-    if (!user || !messageContent || !messageContent.trim()) {
-      console.error('Export: Missing user or message content', { user: !!user, content: !!messageContent });
+    if (!user || !messageContent) {
       showToastMessage('Cannot export: No content available');
       return;
     }
-
-    if (isExporting) {
-      return; // Already exporting, ignore click
-    }
-
+    if (isExporting) return;
     setIsExporting(true);
 
     try {
-      // Generate title from first user message
       const firstUserMessage = messages.find(m => m.role === 'user');
-      const title = firstUserMessage?.content.substring(0, 50) || 'Chat Export';
+      const title = firstUserMessage?.content.substring(0, 50) || 'Study Notes';
+      const cleanTitle = title.replace(/[^a-z0-9]/gi, '_');
 
-      // Clean content for export (remove markdown bold markers, keep structure)
-      const cleanContent = messageContent.replace(/\*\*/g, '').trim();
-      
-      // Create and download file first (don't wait for API)
       if (type === 'pdf') {
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-              <head>
-                <title>${title}</title>
-                <style>
-                  @media print {
-                    body { margin: 0; padding: 0; }
-                  }
-                  body { 
-                    font-family: 'Segoe UI', Arial, sans-serif; 
-                    padding: 60px; 
-                    line-height: 1.8; 
-                    color: #1a1a1a;
-                    background: white;
-                    max-width: 800px;
-                    margin: 0 auto;
-                  }
-                  h1 { 
-                    color: #1a1a1a; 
-                    margin-bottom: 24px;
-                    margin-top: 0;
-                    font-size: 28px;
-                    font-weight: 600;
-                    border-bottom: 2px solid #e5e7eb;
-                    padding-bottom: 12px;
-                  }
-                  h2 {
-                    color: #1a1a1a;
-                    margin-top: 32px;
-                    margin-bottom: 16px;
-                    font-size: 22px;
-                    font-weight: 600;
-                  }
-                  h3 {
-                    color: #374151;
-                    margin-top: 24px;
-                    margin-bottom: 12px;
-                    font-size: 18px;
-                    font-weight: 600;
-                  }
-                  p {
-                    margin-bottom: 12px;
-                    line-height: 1.8;
-                  }
-                  ul, ol {
-                    margin-left: 24px;
-                    margin-bottom: 16px;
-                    padding-left: 0;
-                  }
-                  li {
-                    margin-bottom: 8px;
-                    line-height: 1.7;
-                  }
-                  pre { 
-                    white-space: pre-wrap; 
-                    font-family: inherit;
-                    line-height: 1.8;
-                  }
-                  strong {
-                    font-weight: 600;
-                    color: #1a1a1a;
-                  }
-                </style>
-              </head>
-              <body>
-                <h1>${title}</h1>
-                <pre style="font-family: inherit; white-space: pre-wrap;">${cleanContent}</pre>
-              </body>
-            </html>
-          `);
-          printWindow.document.close();
-          setTimeout(() => printWindow.print(), 250);
+        // Generate professional PDF using server-side Puppeteer
+        const htmlDocument = generateProfessionalPDF(messageContent, title);
+        
+        showToastMessage('Generating PDF...');
+        
+        const response = await fetch('/api/chat/pdf', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            html: htmlDocument,
+            filename: `${cleanTitle}.pdf`,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`PDF generation failed: ${response.statusText}`);
         }
-      } else {
-        // Clean DOC export
-        const blob = new Blob([cleanContent], { type: 'application/msword' });
+
+        // Download the PDF
+        const blob = await response.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${title.replace(/[^a-z0-9]/gi, '_')}.doc`;
+        a.download = `${cleanTitle}.pdf`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+        
+        showToastMessage('PDF downloaded successfully');
+      } else if (type === 'doc') {
+        // Simple DOC export
+        const cleanContent = messageContent.replace(/[*#\[\]]/g, ''); 
+        const blob = new Blob([cleanContent], { type: 'application/msword' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${cleanTitle}.doc`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showToastMessage('Document downloaded successfully');
       }
 
-      // Save to exports in the background (non-blocking)
+      // Save to DB (non-blocking)
       try {
         const supabase = getSupabaseClient();
         const { data: { session } } = await supabase.auth.getSession();
-
-        const exportResponse = await fetch('/api/chat/export', {
+        await fetch('/api/chat/export', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -775,27 +1238,14 @@ ${userInput}`,
             conversationId: currentConversationId,
           }),
         });
-
-        if (exportResponse.ok) {
-          showToastMessage('Export created successfully');
-          setTimeout(() => {
-            router.push('/exports');
-          }, 1500);
-        } else {
-          const errorData = await exportResponse.json().catch(() => ({}));
-          console.error('Export API error:', exportResponse.status, errorData);
-          // File was downloaded, but saving to DB failed - still show success for download
-          showToastMessage('File exported successfully');
-        }
       } catch (apiError) {
-        // File was downloaded, but API call failed - still show success for download
-        console.error('Export API error (file still downloaded):', apiError);
-        showToastMessage('File exported successfully');
+        console.error('Export API error (background save):', apiError);
       }
+
     } catch (error) {
       console.error('Export error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      showToastMessage(`Failed to export: ${errorMessage}`);
+      const errorMsg = error instanceof Error ? error.message : 'Export failed';
+      showToastMessage(errorMsg);
     } finally {
       setIsExporting(false);
     }
