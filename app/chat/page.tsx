@@ -4,7 +4,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseClient } from '@/app/lib/supabase';
 import Sidebar from '@/app/components/Sidebar';
+import FeedbackForm from '@/app/components/FeedbackForm';
 import { renderMarkdown } from '@/app/lib/markdown';
+import ProfessionalReportGenerator from '@/app/lib/reportGenerator';
 import { 
   MessageSquare,
   Send,
@@ -46,6 +48,7 @@ export default function ChatPage() {
   const [showToast, setShowToast] = useState({ show: false, message: '' });
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const hasMountedRef = useRef(false);
@@ -712,25 +715,43 @@ ${userInput}`,
   // Professional PDF export with clean formatting and content cleaning
   const generateProfessionalPDF = (markdown: string, title: string) => {
     // ===== CONTENT CLEANING PHASE =====
-    // 1. Remove URLs completely (https://, http://, www., and any URL-like patterns)
-    let cleanedContent = markdown
-      .replace(/https?:\/\/[^\s)]+/g, '')  // Remove http(s) URLs
-      .replace(/www\.[^\s)]+/g, '')        // Remove www URLs
-      .replace(/[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}[^\s]*/g, (match) => {
-        // Remove domain-like patterns but keep regular words
-        if (match.includes('.com') || match.includes('.org') || match.includes('.net') || 
-            match.includes('.io') || match.includes('.co') || match.includes('.dev') ||
-            match.includes('.app') || match.includes('.site')) {
-          return '';
-        }
-        return match;
-      });
+    // Use the professional report generator to clean all content
+    const cleanedContent = ProfessionalReportGenerator.generate({
+      title: title,
+      content: markdown,
+      stripUrls: true,
+      stripMetadata: true,
+      stripDebugText: true,
+    });
 
-    // 2. Extract title from first heading (## Heading)
+    // Verify the content is clean
+    const validation = ProfessionalReportGenerator.validate(cleanedContent);
+    if (!validation.isClean) {
+      console.warn('Content validation issues:', validation.issues);
+    }
+
+    // 2. Extract and clean title from first heading (## Heading)
     const h2Match = cleanedContent.match(/^##\s+(.+?)$/m);
-    const docTitle = h2Match ? h2Match[1].trim() : (title || 'Study Notes');
+    let docTitle = h2Match ? h2Match[1].trim() : (title || 'Study Notes');
+    
+    // Clean up marketing/UI language from title
+    docTitle = docTitle
+      .replace(/\b(?:overview|insights?|guide|introduction|tutorial|learn|discover|explore)\b/gi, '')
+      .replace(/\b(?:latest|current|today|quick|easy|simple|powerful)\b/gi, '')
+      .replace(/\b(?:AI|Chat|Tool|Platform|App|Assistant|Bot)\b/g, '')
+      .replace(/[📚🎓📖✨🚀]/g, '') // Remove emojis
+      .trim();
+    
+    // If title became too short, use a sensible default
+    if (docTitle.length < 3) {
+      docTitle = 'Study Notes';
+    }
+    
+    // Limit to 12 words
+    const titleWords = docTitle.split(/\s+/).slice(0, 12).join(' ');
+    const finalDocTitle = titleWords;
 
-    // 3. Extract intro paragraph (first non-heading, non-empty line)
+    // 3. Extract intro paragraph (first non-heading, non-empty, non-URL line)
     const introLines = cleanedContent
       .split('\n')
       .filter(line => {
@@ -741,8 +762,7 @@ ${userInput}`,
                !trimmed.startsWith('-') &&
                !trimmed.startsWith('*') &&
                !trimmed.startsWith('|') &&
-               !trimmed.match(/https?:/) &&
-               !trimmed.match(/www\./);
+               trimmed.length > 5; // Ensure meaningful content
       });
     const introParagraph = introLines[0]?.substring(0, 200) || 'Professional Study Notes';
 
@@ -1133,7 +1153,7 @@ ${userInput}`,
   <!-- Header Section -->
   <div class="document-header">
     <div class="logo">📚</div>
-    <h1>${docTitle}</h1>
+    <h1>${finalDocTitle}</h1>
     <p class="document-subtitle">Professional Study Notes</p>
   </div>
 
@@ -1295,6 +1315,13 @@ ${userInput}`,
                   className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none w-64"
                 />
               </div>
+              <button
+                onClick={() => setShowFeedbackModal(true)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Send feedback"
+              >
+                <MessageSquare className="w-5 h-5 text-gray-600" />
+              </button>
               <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
                 <Bell className="w-5 h-5 text-gray-600" />
               </button>
@@ -1581,6 +1608,20 @@ ${userInput}`,
             <Check className="w-5 h-5" />
             <span>{showToast.message}</span>
           </div>
+        )}
+
+        {/* Feedback Modal */}
+        {showFeedbackModal && (
+          <FeedbackForm
+            userId={user?.id}
+            userEmail={user?.email}
+            onClose={() => setShowFeedbackModal(false)}
+            onSubmitSuccess={() => {
+              setShowFeedbackModal(false);
+              setShowToast({ show: true, message: 'Thank you for your feedback!' });
+              setTimeout(() => setShowToast({ show: false, message: '' }), 3000);
+            }}
+          />
         )}
       </div>
     </div>

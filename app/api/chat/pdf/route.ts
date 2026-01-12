@@ -37,11 +37,8 @@ export async function POST(request: NextRequest) {
 
       // Set the HTML content
       await page.setContent(html, {
-        waitUntil: 'networkidle0',
+        waitUntil: 'load',  // ✅ CHANGED: Use 'load' instead of 'networkidle0'
       });
-
-      // Wait a bit for rendering
-      await new Promise(resolve => setTimeout(resolve, 500));
 
       // Generate PDF without any headers/footers
       const pdfBuffer = await page.pdf({
@@ -53,9 +50,7 @@ export async function POST(request: NextRequest) {
           right: '25mm',
         },
         printBackground: true,
-        scale: 1,
-        // This is the key - don't display headers at all
-        displayHeaderFooter: false,
+        displayHeaderFooter: false,  // ✅ CRITICAL: This prevents URL headers
       });
 
       // Close the browser

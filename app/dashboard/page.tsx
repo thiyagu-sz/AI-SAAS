@@ -541,27 +541,44 @@ export default function DashboardPage() {
                 <form
                   onSubmit={async (e) => {
                     e.preventDefault();
+
                     if (!feedbackEmail.trim() || !feedbackMessage.trim()) {
+                      alert('Please fill out all required fields');
                       return;
                     }
 
                     setFeedbackSubmitting(true);
                     try {
-                      // Log feedback (in production, send to API/database)
-                      console.log('Feedback submitted:', {
-                        email: feedbackEmail,
-                        message: feedbackMessage,
+                      const feedbackData = {
+                        userId: user?.id || null,
+                        rating: 5,
+                        category: 'feedback',
+                        title: 'Dashboard Feedback',
+                        message: feedbackMessage.trim(),
+                        email: feedbackEmail.trim(),
+                        features: [],
+                        improvements: null,
+                        wouldRecommend: true,
                         timestamp: new Date().toISOString(),
+                      };
+
+                      const response = await fetch('/api/feedback', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(feedbackData),
                       });
-                      
-                      // Simulate API call
-                      await new Promise(resolve => setTimeout(resolve, 500));
-                      
+
+                      const responseData = await response.json();
+
+                      if (!response.ok) {
+                        throw new Error(responseData.error || 'Failed to submit feedback');
+                      }
+
                       setFeedbackSuccess(true);
                       setFeedbackMessage('');
                     } catch (error) {
                       console.error('Error submitting feedback:', error);
-                      alert('Failed to submit feedback. Please try again.');
+                      alert('Failed to submit feedback. Please try again later.');
                     } finally {
                       setFeedbackSubmitting(false);
                     }
