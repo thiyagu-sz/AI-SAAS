@@ -22,7 +22,7 @@ export default function LandingPage() {
             <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
               <span className="material-symbols-outlined text-[24px]">auto_stories</span>
             </div>
-            <h2 className="text-text-main text-lg font-bold leading-tight tracking-tight">AI Study Notes</h2>
+            <h2 className="text-text-main text-lg font-bold leading-tight tracking-tight">QuickNotes</h2>
           </Link>
           <div className="hidden md:flex items-center gap-8">
             <a className="text-text-main text-sm font-medium hover:text-primary transition-colors" href="#features">Features</a>
@@ -37,7 +37,7 @@ export default function LandingPage() {
               onClick={() => router.push('/signup')}
               className="flex cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-5 bg-primary hover:bg-primary-dark text-white text-sm font-bold transition-all shadow-glow"
             >
-              Get StartedD
+              Get Started
             </button>
           </div>
         </div>
@@ -56,18 +56,19 @@ export default function LandingPage() {
             <span className="text-xs font-semibold text-primary uppercase tracking-wide">New: GPT-4o Integration</span>
           </div>
           <h1 className="text-text-main text-5xl md:text-6xl lg:text-7xl font-black leading-[1.1] tracking-tight">
-            Study smarter.<br/>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-600">Not longer.</span>
+            Smarter notes.<br/>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-600">Better results.</span>
           </h1>
           <p className="text-text-muted text-lg md:text-xl font-normal max-w-2xl leading-relaxed">
-            Turn dense PDFs into exam-ready notes in seconds using AI. Join thousands of students saving time today.
+            Turn dense PDFs into exam-ready notes in seconds using AI. Start saving time today.
           </p>
+          <p className="text-text-muted text-xs">This SaaS product is currently in testing mode for learning and improvement purposes.</p>
           <div className="flex flex-wrap justify-center gap-4 pt-4">
             <button
               onClick={() => router.push('/signup')}
               className="flex min-w-[140px] cursor-pointer items-center justify-center rounded-lg h-12 px-6 bg-primary hover:bg-primary-dark text-white text-base font-bold transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
             >
-              Try for FreeEE
+              Try for Free
             </button>
             <button
               onClick={scrollToFeatures}
@@ -86,7 +87,7 @@ export default function LandingPage() {
               <div className="w-2.5 h-2.5 rounded-full bg-green-400/60"></div>
             </div>
             {/* Image */}
-            <div className="aspect-[16/9] w-full bg-cover bg-center" style={{ backgroundImage: `url('https://lh3.googleusercontent.com/aida-public/AB6AXuCPROB-3AKTklYRUNghcpWygWFlM_1WckUhmVMU_ucFhPhsTNju6R_9Yv9J8Wq6TZFNabNzcpMzfFRFpT0NaCYHp_ClU9Lw1WXiclh69EQ1qEyxECuqge23B_t9zYWRU-AOngLJhyJuLav1kqgM3ptvxiUHDhSJmLHczPyykMj60Kvq0xljtTj-CecwQ0Gt-HKrftgsKwnHTMuO7-WdElyCVxyGEHpg3TR38JQO2gDBSnd9R2Rmez-N80Lvr_5YLRQDyZEfJ68EJgo')` }}>
+            <div className="aspect-[16/9] w-full bg-cover bg-center" style={{ backgroundImage: `url('/demo.png')` }}>
               <div className="w-full h-full bg-gradient-to-tr from-white/10 to-transparent"></div>
             </div>
           </div>
@@ -102,15 +103,15 @@ export default function LandingPage() {
           <div className="flex items-center gap-6 opacity-70 grayscale hover:grayscale-0 transition-all">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-primary">verified_user</span>
-              <span className="text-sm font-semibold">SOC2 Compliant</span>
+              <span className="text-sm font-semibold">Secure</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-primary">bolt</span>
-              <span className="text-sm font-semibold">10x Faster</span>
+              <span className="text-sm font-semibold">Fast</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary">group</span>
-              <span className="text-sm font-semibold">10k+ Users</span>
+              <span className="material-symbols-outlined text-primary">lock</span>
+              <span className="text-sm font-semibold">Private</span>
             </div>
           </div>
         </div>
@@ -258,7 +259,7 @@ export default function LandingPage() {
               Start preparing smarter today
             </h2>
             <p className="text-blue-100 text-lg md:text-xl max-w-xl">
-              Join 10,000+ students who have switched to AI Study Notes. Get your first summary for free.
+              Try QuickNotes and get your first summary for free.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 mt-4">
               <button
@@ -286,7 +287,7 @@ export default function LandingPage() {
             <div className="col-span-2 lg:col-span-2 flex flex-col gap-4">
               <div className="flex items-center gap-2 text-text-main">
                 <span className="material-symbols-outlined text-primary">auto_stories</span>
-                <h2 className="text-lg font-bold">AI Study Notes</h2>
+                <h2 className="text-lg font-bold">QuickNotes</h2>
               </div>
               <p className="text-text-muted text-sm max-w-xs">
                 Empowering students with AI tools to learn faster, retain more, and stress less.
@@ -305,10 +306,10 @@ export default function LandingPage() {
             </div>
             <div className="flex flex-col gap-3">
               <h3 className="font-bold text-text-main text-sm">Company</h3>
-              <a className="text-text-muted text-sm hover:text-primary" href="#">About</a>
-              <a className="text-text-muted text-sm hover:text-primary" href="#">Blog</a>
-              <a className="text-text-muted text-sm hover:text-primary" href="#">Careers</a>
-              <a className="text-text-muted text-sm hover:text-primary" href="#">Contact</a>
+              <a className="text-text-muted text-sm hover:text-primary" href="https://thiyagu-portfolio.me/" target="_blank" rel="noopener noreferrer">About</a>
+              <a className="text-text-muted text-sm hover:text-primary" href="https://thiyagu-portfolio.me/" target="_blank" rel="noopener noreferrer">Blog</a>
+              <a className="text-text-muted text-sm hover:text-primary" href="https://thiyagu-portfolio.me/" target="_blank" rel="noopener noreferrer">Careers</a>
+              <a className="text-text-muted text-sm hover:text-primary" href="https://thiyagu-portfolio.me/" target="_blank" rel="noopener noreferrer">Contact</a>
             </div>
             <div className="flex flex-col gap-3">
               <h3 className="font-bold text-text-main text-sm">Legal</h3>
@@ -318,7 +319,10 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="border-t border-[#e7e7f3] pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-text-muted text-sm">© 2024 AI Study Notes. All rights reserved.</p>
+            <div className="flex flex-col items-center md:items-start gap-1">
+              <p className="text-text-muted text-xs">This SaaS product is currently in testing mode for learning and improvement purposes.</p>
+              <p className="text-text-muted text-sm">© 2024 QuickNotes . All rights reserved Dev thiyagu.</p>
+            </div>
             <div className="flex items-center gap-1 text-xs text-text-muted">
               <span className="w-2 h-2 rounded-full bg-green-500"></span>
               Systems Operational

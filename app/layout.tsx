@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "AI Study Notes",
+  title: "QuickNotes",
   description: "AI-powered study notes and summaries",
 };
 

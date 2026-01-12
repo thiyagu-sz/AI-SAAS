@@ -503,28 +503,28 @@ export default function DashboardPage() {
 
       {/* Feedback Modal */}
       {showFeedbackModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Send Feedback</h2>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black bg-opacity-50">
+          <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto safe-area-bottom">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between rounded-t-2xl sm:rounded-t-lg">
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Send Feedback</h2>
               <button
                 onClick={() => {
                   setShowFeedbackModal(false);
                   setFeedbackMessage('');
                   setFeedbackSuccess(false);
                 }}
-                className="p-1 hover:bg-gray-100 rounded transition-colors"
+                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
                 aria-label="Close"
               >
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
             
-            <div className="p-6">
+            <div className="p-4 sm:p-6">
               {feedbackSuccess ? (
-                <div className="text-center py-8">
-                  <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Thanks for your feedback!</h3>
+                <div className="text-center py-6 sm:py-8">
+                  <CheckCircle2 className="w-12 h-12 sm:w-16 sm:h-16 text-green-500 mx-auto mb-4" />
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">Thanks for your feedback!</h3>
                   <p className="text-gray-600 text-sm">We appreciate your input and will use it to improve our service.</p>
                   <button
                     onClick={() => {
@@ -532,7 +532,7 @@ export default function DashboardPage() {
                       setFeedbackMessage('');
                       setFeedbackSuccess(false);
                     }}
-                    className="mt-6 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="mt-6 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors w-full sm:w-auto"
                   >
                     Close
                   </button>
@@ -595,7 +595,7 @@ export default function DashboardPage() {
                       value={feedbackEmail}
                       onChange={(e) => setFeedbackEmail(e.target.value)}
                       required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      className="w-full px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-base sm:text-sm"
                       placeholder="your@email.com"
                     />
                   </div>
@@ -609,27 +609,27 @@ export default function DashboardPage() {
                       value={feedbackMessage}
                       onChange={(e) => setFeedbackMessage(e.target.value)}
                       required
-                      rows={6}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none"
+                      rows={5}
+                      className="w-full px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none text-base sm:text-sm"
                       placeholder="Your feedback, suggestions, or issues..."
                     />
                   </div>
                   
-                  <div className="flex gap-3 pt-2">
+                  <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2">
                     <button
                       type="button"
                       onClick={() => {
                         setShowFeedbackModal(false);
                         setFeedbackMessage('');
                       }}
-                      className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                      className="flex-1 px-4 py-2.5 sm:py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
                       disabled={!feedbackEmail.trim() || !feedbackMessage.trim() || feedbackSubmitting}
-                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                      className="flex-1 px-4 py-2.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                     >
                       {feedbackSubmitting ? (
                         <>

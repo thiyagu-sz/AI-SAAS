@@ -185,7 +185,7 @@ export default function Sidebar({ user }: SidebarProps) {
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       }`}>
         <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-900">AI Study Notes</h1>
+          <h1 className="text-xl font-bold text-gray-900">QuickNotes</h1>
           <button
             onClick={() => setIsMobileMenuOpen(false)}
             className="lg:hidden p-1 hover:bg-gray-100 rounded"

@@ -15,7 +15,7 @@ export default function Home() {
         const { data: { user } } = await supabase.auth.getUser();
         
         if (user) {
-          router.push('/dashboard');
+          router.push('/chat');
         }
       } catch (error) {
         // If auth check fails, still show landing page

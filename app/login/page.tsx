@@ -28,7 +28,7 @@ export default function LoginPage() {
       if (signInError) throw signInError;
 
       if (data.user) {
-        router.push('/dashboard');
+        router.push('/chat');
         router.refresh();
       }
     } catch (err) {
@@ -47,7 +47,7 @@ export default function LoginPage() {
       const { error: signInError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '')}/dashboard`,
+          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '')}/chat`,
         },
       });
 
@@ -63,7 +63,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Study Notes</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">QuickNotes</h1>
             <p className="text-gray-600">Sign in to your account</p>
           </div>
 

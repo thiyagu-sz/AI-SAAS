@@ -319,88 +319,135 @@ export default function ExportsPage() {
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           <div className="max-w-6xl mx-auto">
             {exports.length > 0 ? (
-              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-200">
-                      <tr>
-                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                          Notes Name
-                        </th>
-                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                          Type
-                        </th>
-                        <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                          Created
-                        </th>
-                        <th className="px-4 sm:px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                          Action
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {exports.map((exportItem) => (
-                        <tr key={exportItem.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center gap-3">
-                              {exportItem.type === 'pdf' ? (
-                                <FileText className="w-5 h-5 text-red-600" />
-                              ) : (
-                                <File className="w-5 h-5 text-blue-600" />
+              <>
+                {/* Mobile Card View */}
+                <div className="sm:hidden space-y-3">
+                  {exports.map((exportItem) => (
+                    <div key={exportItem.id} className="bg-white rounded-lg border border-gray-200 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3 min-w-0 flex-1">
+                          {exportItem.type === 'pdf' ? (
+                            <FileText className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                          ) : (
+                            <File className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-gray-900 truncate">{exportItem.title}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 uppercase">
+                                {exportItem.type}
+                              </span>
+                              {exportItem.source === 'collection' && exportItem.collectionId && (
+                                <Link
+                                  href={`/notes/${exportItem.collectionId}`}
+                                  className="text-xs text-blue-600 hover:text-blue-700"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  View notes
+                                </Link>
                               )}
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">{exportItem.title}</p>
-                                {exportItem.source === 'collection' && exportItem.collectionId && (
-                                  <Link
-                                    href={`/notes/${exportItem.collectionId}`}
-                                    className="text-xs text-blue-600 hover:text-blue-700"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    View notes
-                                  </Link>
-                                )}
-                                {exportItem.source === 'chat' && (
-                                  <span className="text-xs text-gray-500">From chat</span>
-                                )}
-                              </div>
+                              {exportItem.source === 'chat' && (
+                                <span className="text-xs text-gray-500">From chat</span>
+                              )}
                             </div>
-                          </td>
-                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 uppercase">
-                              {exportItem.type}
-                            </span>
-                          </td>
-                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {formatDate(exportItem.createdAt)}
-                          </td>
-                          <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right">
-                            <button
-                              onClick={() => handleExport(exportItem)}
-                              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-                            >
-                              <ArrowDown className="w-4 h-4" />
-                              Download
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                            <p className="text-xs text-gray-500 mt-1">{formatDate(exportItem.createdAt)}</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleExport(exportItem)}
+                          className="flex items-center justify-center w-9 h-9 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex-shrink-0"
+                        >
+                          <ArrowDown className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
-                <div className="max-w-md mx-auto">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Download className="w-8 h-8 text-gray-400" />
+
+                {/* Desktop Table View */}
+                <div className="hidden sm:block bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                            Notes Name
+                          </th>
+                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                            Type
+                          </th>
+                          <th className="px-4 sm:px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                            Created
+                          </th>
+                          <th className="px-4 sm:px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                            Action
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {exports.map((exportItem) => (
+                          <tr key={exportItem.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center gap-3">
+                                {exportItem.type === 'pdf' ? (
+                                  <FileText className="w-5 h-5 text-red-600" />
+                                ) : (
+                                  <File className="w-5 h-5 text-blue-600" />
+                                )}
+                                <div>
+                                  <p className="text-sm font-medium text-gray-900">{exportItem.title}</p>
+                                  {exportItem.source === 'collection' && exportItem.collectionId && (
+                                    <Link
+                                      href={`/notes/${exportItem.collectionId}`}
+                                      className="text-xs text-blue-600 hover:text-blue-700"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      View notes
+                                    </Link>
+                                  )}
+                                  {exportItem.source === 'chat' && (
+                                    <span className="text-xs text-gray-500">From chat</span>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 uppercase">
+                                {exportItem.type}
+                              </span>
+                            </td>
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                              {formatDate(exportItem.createdAt)}
+                            </td>
+                            <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right">
+                              <button
+                                onClick={() => handleExport(exportItem)}
+                                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                              >
+                                <ArrowDown className="w-4 h-4" />
+                                Download
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No exports yet</h3>
+                </div>
+              </>
+            ) : (
+              <div className="bg-white rounded-lg border border-gray-200 p-8 sm:p-12 text-center">
+                <div className="max-w-md mx-auto">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Download className="w-7 h-7 sm:w-8 sm:h-8 text-gray-400" />
+                  </div>
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">No exports yet</h3>
                   <p className="text-sm text-gray-500 mb-6">
                     Generate notes from your documents to create exportable files.
                   </p>
                   <Link
                     href="/upload"
-                    className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
                   >
                     <FileText className="w-4 h-4" />
                     Upload Documents

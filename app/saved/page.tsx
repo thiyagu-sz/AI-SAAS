@@ -185,18 +185,18 @@ export default function SavedItemsPage() {
                 ))}
               </div>
             ) : (
-              <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+              <div className="bg-white rounded-lg border border-gray-200 p-8 sm:p-12 text-center">
                 <div className="max-w-md mx-auto">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <BookmarkCheck className="w-8 h-8 text-gray-400" />
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <BookmarkCheck className="w-7 h-7 sm:w-8 sm:h-8 text-gray-400" />
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">No saved items yet</h3>
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">No saved items yet</h3>
                   <p className="text-sm text-gray-500 mb-6">
                     Save folders from the Dashboard to access them quickly here.
                   </p>
                   <Link
                     href="/dashboard"
-                    className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                    className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
                   >
                     <FileText className="w-4 h-4" />
                     Go to Dashboard

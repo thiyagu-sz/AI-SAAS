@@ -391,10 +391,10 @@ export default function UploadPage() {
 
       <div className="flex-1 flex overflow-hidden lg:ml-0">
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 pb-48 lg:pb-6">
           <div className="max-w-4xl mx-auto">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Upload Study Materials</h1>
-            <p className="text-gray-600 mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Upload Study Materials</h1>
+            <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">
               Import your documents to generate AI summaries and quizzes
             </p>
 
@@ -403,22 +403,22 @@ export default function UploadPage() {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-lg p-8 sm:p-12 text-center transition-colors ${
+              className={`border-2 border-dashed rounded-lg p-6 sm:p-8 md:p-12 text-center transition-colors ${
                 isDragging
                   ? 'border-blue-500 bg-blue-50'
                   : 'border-gray-300 bg-white hover:border-gray-400'
               }`}
             >
-              <UploadIcon className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-lg font-medium text-gray-900 mb-2">
+              <UploadIcon className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 text-gray-400 mx-auto mb-3 sm:mb-4" />
+              <p className="text-base sm:text-lg font-medium text-gray-900 mb-2">
                 Drop PDFs or PPTs here
               </p>
-              <p className="text-sm text-gray-600 mb-6">
-                Max file size 50MB. Supported formats: .pdf, .ppt, .pptx, .docx<br />
-                You can upload up to 10 files at once
+              <p className="text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6 px-2">
+                Max file size 50MB. Supported formats: .pdf, .ppt, .pptx, .docx<br className="hidden sm:block" />
+                <span className="sm:hidden"> • </span>You can upload up to 10 files at once
               </p>
-              <label className="inline-flex items-center gap-2 bg-black text-white px-6 py-2.5 rounded-lg font-medium hover:bg-gray-800 transition-colors cursor-pointer">
-                <UploadIcon className="w-5 h-5" />
+              <label className="inline-flex items-center gap-2 bg-black text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg font-medium hover:bg-gray-800 transition-colors cursor-pointer text-sm sm:text-base">
+                <UploadIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                 Browse Files
                 <input
                   type="file"
@@ -553,8 +553,8 @@ export default function UploadPage() {
 
       {/* Mobile Recent Uploads - Bottom drawer on mobile */}
       {recentUploads.length > 0 && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 max-h-48 overflow-y-auto shadow-lg z-30">
-          <h3 className="text-sm font-semibold text-gray-900 mb-2">Recent Uploads</h3>
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 sm:p-4 max-h-40 sm:max-h-48 overflow-y-auto shadow-lg z-30 safe-area-bottom">
+          <h3 className="text-xs sm:text-sm font-semibold text-gray-900 mb-2">Recent Uploads</h3>
           <div className="space-y-2">
             {recentUploads.slice(0, 3).map((upload) => (
               <div
@@ -581,12 +581,12 @@ export default function UploadPage() {
 
       {/* Collection Name Modal */}
       {showCollectionModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-lg p-4 sm:p-6 w-full sm:max-w-md max-h-[80vh] overflow-y-auto safe-area-bottom">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">
               Create Study Notes Collection
             </h2>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-xs sm:text-sm text-gray-600 mb-4">
               Enter a name for this collection (e.g., "Neural Networks – Unit 3")
             </p>
             <input
@@ -594,7 +594,7 @@ export default function UploadPage() {
               value={collectionName}
               onChange={(e) => setCollectionName(e.target.value)}
               placeholder="Collection name"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none mb-4"
+              className="w-full px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none mb-4 text-base sm:text-sm"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -606,14 +606,7 @@ export default function UploadPage() {
                 }
               }}
             />
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleCollectionSubmit}
-                disabled={!collectionName.trim() || isUploading}
-                className="flex-1 bg-black text-white px-4 py-2 rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isUploading ? 'Creating...' : 'Create Collection'}
-              </button>
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
               <button
                 onClick={() => {
                   setShowCollectionModal(false);
@@ -621,12 +614,19 @@ export default function UploadPage() {
                   setCollectionName('');
                 }}
                 disabled={isUploading}
-                className="px-4 py-2 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm sm:text-base"
               >
                 Cancel
               </button>
+              <button
+                onClick={handleCollectionSubmit}
+                disabled={!collectionName.trim() || isUploading}
+                className="flex-1 sm:flex-none bg-black text-white px-4 py-2.5 sm:py-2 rounded-lg font-medium hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
+              >
+                {isUploading ? 'Creating...' : 'Create Collection'}
+              </button>
             </div>
-            <p className="text-xs text-gray-500 mt-3">
+            <p className="text-xs text-gray-500 mt-3 text-center sm:text-left">
               {selectedFiles.length} {selectedFiles.length === 1 ? 'file' : 'files'} selected
             </p>
           </div>

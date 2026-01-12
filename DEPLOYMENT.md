@@ -1,6 +1,6 @@
-# Deployment Guide for AI Study Notes
+# Deployment Guide for QuickNotes
 
-This guide will help you deploy your AI Study Notes application to production.
+This guide will help you deploy your QuickNotes application to production.
 
 ## 🚀 Quick Deploy Options
 

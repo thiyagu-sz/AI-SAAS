@@ -370,58 +370,58 @@ export default function NotesViewerPage() {
 
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link href="/dashboard" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+        <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <Link href="/dashboard" className="p-2 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0">
                 <ArrowLeft className="w-5 h-5 text-gray-600" />
               </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">{collection?.name || 'Study Notes'}</h1>
-                <p className="text-sm text-gray-600 mt-1">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{collection?.name || 'Study Notes'}</h1>
+                <p className="text-xs sm:text-sm text-gray-600 mt-0.5 sm:mt-1">
                   {documents.length} {documents.length === 1 ? 'file' : 'files'} • Created{' '}
                   {collection?.created_at ? new Date(collection.created_at).toLocaleDateString() : ''}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 ml-10 sm:ml-0">
               <button
                 onClick={exportToPDF}
                 disabled={!note || exporting}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm"
               >
                 <FileDown className="w-4 h-4" />
-                Export PDF
+                <span className="hidden xs:inline">Export</span> PDF
               </button>
               <button
                 onClick={exportToDOC}
                 disabled={!note || exporting}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+                className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 border border-gray-300 rounded-lg font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm"
               >
                 <FileDown className="w-4 h-4" />
-                Export DOC
+                <span className="hidden xs:inline">Export</span> DOC
               </button>
             </div>
           </div>
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+          <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Notes Content */}
-            <div className="lg:col-span-2">
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Generated Notes</h2>
+            <div className="lg:col-span-2 order-2 lg:order-1">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6">
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-3 sm:mb-4">Generated Notes</h2>
                 {note ? (
                   <div className="prose max-w-none">
-                    <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{note.content}</pre>
+                    <pre className="whitespace-pre-wrap font-sans text-xs sm:text-sm leading-relaxed overflow-x-auto">{note.content}</pre>
                   </div>
                 ) : (
-                  <div className="text-center py-12 text-gray-500">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-gray-400" />
-                    <p className="mb-2 font-medium">Notes are being generated...</p>
-                    <p className="text-xs text-gray-400 mb-4">
+                  <div className="text-center py-8 sm:py-12 text-gray-500">
+                    <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin mx-auto mb-3 sm:mb-4 text-gray-400" />
+                    <p className="mb-2 font-medium text-sm sm:text-base">Notes are being generated...</p>
+                    <p className="text-xs text-gray-400 mb-4 px-4">
                       {isPolling
                         ? 'Checking for notes automatically... (This may take 30-60 seconds)'
                         : 'This may take a few moments. Click refresh to check again.'}
@@ -461,19 +461,19 @@ export default function NotesViewerPage() {
             </div>
 
             {/* Files Sidebar */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Uploaded Files</h3>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 order-1 lg:order-2">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Uploaded Files</h3>
               {documents.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {documents.map((doc) => (
                     <div
                       key={doc.id}
-                      className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                      className="flex items-start gap-2 sm:gap-3 p-2 sm:p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                     >
-                      <FileText className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 mt-0.5 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{doc.name}</p>
-                        <p className="text-xs text-gray-500 mt-1">{formatFileSize(doc.file_size)}</p>
+                        <p className="text-xs sm:text-sm font-medium text-gray-900 truncate">{doc.name}</p>
+                        <p className="text-xs text-gray-500 mt-0.5 sm:mt-1">{formatFileSize(doc.file_size)}</p>
                         {doc.file_url && (
                           <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:text-blue-700 mt-1 inline-block">
                             Download
@@ -484,7 +484,7 @@ export default function NotesViewerPage() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-6 sm:py-8 text-gray-500">
                   <p className="text-sm">No files in this collection</p>
                 </div>
               )}

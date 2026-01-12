@@ -15,7 +15,7 @@ export async function GET() {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
         'HTTP-Referer': 'http://localhost:3000',
-        'X-Title': 'AI Study Notes Test',
+        'X-Title': 'QuickNotes Test',
       },
       body: JSON.stringify({
         // Try multiple models to see which one works

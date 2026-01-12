@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Prevent horizontal scroll on mobile */
+html,
+body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -81,6 +88,7 @@ body {
   box-shadow: 0 0 15px rgba(43, 43, 238, 0.15);
 }
 
+
 .shadow-soft {
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
 }
@@ -91,4 +99,23 @@ body {
 
 .border-\[\#cfcfe7\] {
   border-color: #cfcfe7;
+}
+
+/* Safe area for mobile devices with notches */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+/* Smooth scrolling for touch devices */
+@media (hover: none) {
+  .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Responsive text utilities */
+@media (max-width: 350px) {
+  .text-xs-mobile {
+    font-size: 0.65rem;
+  }
 }

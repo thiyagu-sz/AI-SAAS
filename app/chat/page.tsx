@@ -1353,8 +1353,8 @@ ${userInput}`,
 
                   return (
                     <div key={message.id} className={`flex mb-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`flex gap-3 max-w-[85%] sm:max-w-[75%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      <div className={`flex gap-2 sm:gap-3 max-w-[90%] sm:max-w-[85%] md:max-w-[75%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                        <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                           message.role === 'user' 
                             ? 'bg-blue-600 text-white' 
                             : 'bg-gray-800 text-white'
@@ -1368,7 +1368,7 @@ ${userInput}`,
                           )}
                         </div>
                         <div className={`flex-1 min-w-0 ${message.role === 'user' ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}>
-                          <div className={`rounded-2xl px-4 py-3 ${
+                          <div className={`rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 ${
                             message.role === 'user'
                               ? 'bg-blue-600 text-white'
                               : 'bg-gray-100 text-gray-900'
@@ -1490,10 +1490,10 @@ ${userInput}`,
 
         {/* Format Options Panel */}
         {showFormatOptions && (
-          <div className="bg-white border-t border-gray-200 p-4">
-            <div className="max-w-3xl mx-auto px-4 sm:px-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-gray-900">How do you want the output?</h3>
+          <div className="bg-white border-t border-gray-200 p-3 sm:p-4 max-h-[40vh] overflow-y-auto">
+            <div className="max-w-3xl mx-auto px-2 sm:px-6">
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <h3 className="text-xs sm:text-sm font-semibold text-gray-900">How do you want the output?</h3>
                 <button
                   onClick={() => setShowFormatOptions(false)}
                   className="p-1 hover:bg-gray-100 rounded"
@@ -1502,12 +1502,12 @@ ${userInput}`,
                   <X className="w-4 h-4 text-gray-500" />
                 </button>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+              <div className="flex flex-wrap gap-2 mb-3 sm:mb-4 overflow-x-auto pb-2 -mx-2 px-2 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4">
                 {formatOptions.map((option) => (
                   <button
                     key={option.value}
                     onClick={() => setSelectedFormat(option.value)}
-                    className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
+                    className={`px-3 py-2 text-xs sm:text-sm rounded-lg border transition-colors whitespace-nowrap flex-shrink-0 ${
                       selectedFormat === option.value
                         ? 'bg-blue-50 border-blue-500 text-blue-700 font-medium'
                         : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -1517,8 +1517,8 @@ ${userInput}`,
                   </button>
                 ))}
               </div>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <label className="text-sm text-gray-700 whitespace-nowrap">Word count:</label>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                <label className="text-xs sm:text-sm text-gray-700 whitespace-nowrap">Word count:</label>
                 <div className="flex flex-wrap gap-2">
                   {[50, 100, 200].map((count) => (
                     <button
@@ -1527,7 +1527,7 @@ ${userInput}`,
                         setWordCount(count);
                         setCustomWordCount('');
                       }}
-                      className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                      className={`px-3 py-1.5 text-xs sm:text-sm rounded-lg border transition-colors ${
                         wordCount === count && !customWordCount
                           ? 'bg-blue-50 border-blue-500 text-blue-700 font-medium'
                           : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -1547,7 +1547,7 @@ ${userInput}`,
                         setWordCount(parseInt(val) || 100);
                       }
                     }}
-                    className="w-20 px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    className="w-16 sm:w-20 px-2 sm:px-3 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                   />
                 </div>
               </div>
@@ -1556,8 +1556,8 @@ ${userInput}`,
         )}
 
         {/* Input Area */}
-        <div className="bg-white border-t border-gray-200 sticky bottom-0">
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3">
+        <div className="bg-white border-t border-gray-200 sticky bottom-0 z-20">
+          <div className="max-w-3xl mx-auto px-3 sm:px-6 py-2 sm:py-3">
             {/* Save Chat Toggle */}
             <div className="mb-2 flex items-center justify-between flex-wrap gap-2">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -1567,18 +1567,19 @@ ${userInput}`,
                   onChange={(e) => setSaveChat(e.target.checked)}
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
-                <span className="text-sm text-gray-700">Save this chat for future reference</span>
+                <span className="text-xs sm:text-sm text-gray-700">Save this chat for future reference</span>
               </label>
               {saveChat && (
                 <div className="flex items-center gap-1 text-xs text-blue-600">
                   <Check className="w-3 h-3" />
-                  <span>Chat will be saved</span>
+                  <span className="hidden sm:inline">Chat will be saved</span>
+                  <span className="sm:hidden">Saved</span>
                 </div>
               )}
             </div>
 
-            <div className="flex items-end gap-3">
-              <div className="flex-1 border border-gray-300 rounded-2xl focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500 bg-white">
+            <div className="flex items-end gap-2 sm:gap-3">
+              <div className="flex-1 border border-gray-300 rounded-2xl focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500 bg-white min-w-0">
                 <textarea
                   ref={textareaRef}
                   value={input}
@@ -1587,16 +1588,16 @@ ${userInput}`,
                   onFocus={handleInputFocus}
                   onPaste={handleInputPaste}
                   placeholder="Message AI Assistant..."
-                  className="w-full px-4 py-3 border-none rounded-2xl focus:ring-0 focus:outline-none resize-none text-sm bg-transparent"
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-none rounded-2xl focus:ring-0 focus:outline-none resize-none text-sm bg-transparent"
                   rows={1}
                 />
               </div>
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
-                className="flex items-center justify-center bg-blue-600 text-white p-3 rounded-2xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[44px] flex-shrink-0"
+                className="flex items-center justify-center bg-blue-600 text-white p-2.5 sm:p-3 rounded-2xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[40px] sm:min-w-[44px] flex-shrink-0"
               >
-                <Send className="w-5 h-5" />
+                <Send className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
           </div>

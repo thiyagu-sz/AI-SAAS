@@ -152,7 +152,7 @@ async function streamChatResponse(
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`,
           'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-          'X-Title': 'AI Study Notes',
+          'X-Title': 'QuickNotes',
         };
         
         console.log('🚀 Chat: Making OpenRouter request');

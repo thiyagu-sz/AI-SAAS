@@ -351,7 +351,7 @@ async function generateAINotes(text: string): Promise<string> {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
         'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-        'X-Title': 'AI Study Notes',
+        'X-Title': 'QuickNotes',
       },
       body: JSON.stringify({
         model: 'meta-llama/llama-3.2-3b-instruct:free',
