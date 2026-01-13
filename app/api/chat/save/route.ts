@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
       if (newMessages.length > 0) {
         const messagesToInsert = newMessages.map((msg: { role: string; content: string; sources?: any }) => ({
           conversation_id: conversation!.id,
+          user_id: user.id,  // IMPORTANT: Include user_id for RLS
           role: msg.role,
           content: msg.content,
           sources: msg.sources || null,
@@ -157,6 +158,7 @@ export async function POST(request: NextRequest) {
       // Insert all messages for new conversation
       const messagesToInsert = messages.map((msg: { role: string; content: string; sources?: any }) => ({
         conversation_id: conversation!.id,
+        user_id: user.id,  // IMPORTANT: Include user_id for RLS
         role: msg.role,
         content: msg.content,
         sources: msg.sources || null,

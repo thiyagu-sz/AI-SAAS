@@ -15,7 +15,7 @@ import {
   Menu,
   Clock
 } from 'lucide-react';
-import { getSupabaseClient } from '@/app/lib/supabase';
+import { getSupabaseClient, clearSupabaseClient } from '@/app/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -147,6 +147,10 @@ export default function Sidebar({ user }: SidebarProps) {
   const handleSignOut = async () => {
     const supabase = getSupabaseClient();
     await supabase.auth.signOut();
+    // Clear the singleton instance to ensure clean state for next user
+    clearSupabaseClient();
+    // Clear chat history state
+    setChatHistory([]);
     router.push('/login');
   };
 

@@ -44,10 +44,12 @@ export default function LoginPage() {
 
     try {
       const supabase = getSupabaseClient();
+      // Always use window.location.origin to ensure correct redirect for both localhost and production
+      const redirectUrl = typeof window !== 'undefined' ? `${window.location.origin}/chat` : '/chat';
       const { error: signInError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '')}/chat`,
+          redirectTo: redirectUrl,
         },
       });
 
