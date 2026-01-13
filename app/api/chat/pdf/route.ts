@@ -56,13 +56,16 @@ export async function POST(request: NextRequest) {
       // Close the browser
       await page.close();
 
+      // Convert Uint8Array to Buffer for NextResponse compatibility
+      const buffer = Buffer.from(pdfBuffer);
+
       // Return PDF as a file download
-      return new NextResponse(pdfBuffer, {
+      return new NextResponse(buffer, {
         status: 200,
         headers: {
           'Content-Type': 'application/pdf',
           'Content-Disposition': `attachment; filename="${filename || 'document.pdf'}"`,
-          'Content-Length': pdfBuffer.length.toString(),
+          'Content-Length': buffer.length.toString(),
         },
       });
     } finally {
