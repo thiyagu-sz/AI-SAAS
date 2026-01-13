@@ -150,39 +150,29 @@ export default function ChatPage() {
     checkAuth();
   }, [router]);
 
-  // Try to restore draft immediately on mount (before auth completes). Skip if URL contains a conversation id.
+  // Helper to get user-specific localStorage key
+  const getStorageKey = useCallback((userId: string | undefined) => {
+    return userId ? `ai_chat_draft_${userId}` : 'ai_chat_draft';
+  }, []);
+
+  // Clear any non-user-specific draft on mount (migration cleanup)
   useEffect(() => {
     try {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('id')) return; // prefer server-stored conversation when present
+      // Remove old global key if it exists (one-time migration)
+      localStorage.removeItem('ai_chat_draft');
+    } catch (e) { /* ignore */ }
+  }, []);
 
-      const raw = localStorage.getItem('ai_chat_draft');
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (parsed && Array.isArray(parsed.messages) && parsed.messages.length > 0) {
-        const restored: Message[] = parsed.messages.map((m: any) => ({
-          ...m,
-          timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
-        }));
-        setMessages(restored);
-
-        if (parsed.meta) {
-          if (typeof parsed.meta.saveChat === 'boolean') setSaveChat(parsed.meta.saveChat);
-          if (parsed.meta.selectedFormat) setSelectedFormat(parsed.meta.selectedFormat);
-          if (parsed.meta.wordCount) setWordCount(parsed.meta.wordCount);
-          if (parsed.meta.currentConversationId) setCurrentConversationId(parsed.meta.currentConversationId);
-        }
-
-        // brief toast to indicate restoration
-        setShowToast({ show: true, message: 'Restored chat draft' });
-        setTimeout(() => setShowToast({ show: false, message: '' }), 2000);
-      }
-    } catch (e) {
-      console.error('Failed to restore early chat draft:', e);
-    }
+  // Try to restore draft immediately on mount (before auth completes). Skip if URL contains a conversation id.
+  // NOTE: We can't restore here without user ID, so we'll wait for auth
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('id')) return; // prefer server-stored conversation when present
+    // Early restore skipped - will restore after auth completes with user-specific key
   }, []);
 
   // Persist messages and some meta to localStorage so chats survive refresh
+  // Use user-specific key to prevent cross-user data leakage
   useEffect(() => {
     // Avoid writing to localStorage on the very first render — this prevents overwriting
     // an existing draft that we're about to restore.
@@ -190,6 +180,9 @@ export default function ChatPage() {
       hasMountedRef.current = true;
       return;
     }
+    // Don't save if no user (not authenticated yet)
+    if (!user?.id) return;
+    
     try {
       const payload = {
         messages,
@@ -201,21 +194,23 @@ export default function ChatPage() {
         },
         savedAt: new Date().toISOString(),
       };
-      localStorage.setItem('ai_chat_draft', JSON.stringify(payload));
+      localStorage.setItem(getStorageKey(user.id), JSON.stringify(payload));
     } catch (e) {
       // Ignore storage errors (e.g. private mode)
       console.error('Failed to persist chat draft:', e);
     }
-  }, [messages, currentConversationId, saveChat, selectedFormat, wordCount]);
+  }, [messages, currentConversationId, saveChat, selectedFormat, wordCount, user?.id, getStorageKey]);
 
   // Restore draft from localStorage after auth/checks complete — only when there's no conversation loaded
+  // Use user-specific key for isolation between users
   useEffect(() => {
     if (loading) return; // wait until auth/loadConversation completed
+    if (!user?.id) return; // need user ID for user-specific key
     // If a conversation was explicitly loaded via URL, prefer that
     if (currentConversationId) return;
 
     try {
-      const raw = localStorage.getItem('ai_chat_draft');
+      const raw = localStorage.getItem(getStorageKey(user.id));
       if (!raw) return;
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.messages) && parsed.messages.length > 0) {
@@ -241,7 +236,7 @@ export default function ChatPage() {
     } catch (e) {
       console.error('Failed to restore chat draft:', e);
     }
-  }, [loading, currentConversationId]);
+  }, [loading, currentConversationId, user?.id, getStorageKey]);
 
   const loadConversation = async (conversationId: string) => {
     try {
@@ -635,7 +630,7 @@ ${userInput}`,
           setCurrentConversationId(conversationId);
           console.log('Conversation created:', conversationId);
           // Clear the local draft now that conversation is persisted
-          try { localStorage.removeItem('ai_chat_draft'); } catch (e) { /* ignore */ }
+          try { localStorage.removeItem(getStorageKey(user?.id)); } catch (e) { /* ignore */ }
           // Dispatch event to refresh sidebar with a small delay
           setTimeout(() => {
             window.dispatchEvent(new CustomEvent('chatSaved'));
@@ -691,7 +686,7 @@ ${userInput}`,
 
         console.log('Message saved to conversation:', conversationId);
         // Clear the local draft now that message is persisted
-        try { localStorage.removeItem('ai_chat_draft'); } catch (e) { /* ignore */ }
+        try { localStorage.removeItem(getStorageKey(user?.id)); } catch (e) { /* ignore */ }
         // Dispatch event to refresh sidebar with a small delay
         setTimeout(() => {
           window.dispatchEvent(new CustomEvent('chatSaved'));

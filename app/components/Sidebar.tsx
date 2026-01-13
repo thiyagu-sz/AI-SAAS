@@ -146,11 +146,26 @@ export default function Sidebar({ user }: SidebarProps) {
 
   const handleSignOut = async () => {
     const supabase = getSupabaseClient();
+    // Get current user ID before signing out to clear their localStorage
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    
     await supabase.auth.signOut();
     // Clear the singleton instance to ensure clean state for next user
     clearSupabaseClient();
     // Clear chat history state
     setChatHistory([]);
+    
+    // Clear user-specific localStorage data
+    if (currentUser?.id) {
+      try {
+        localStorage.removeItem(`ai_chat_draft_${currentUser.id}`);
+      } catch (e) { /* ignore */ }
+    }
+    // Also clear any old global key that might exist
+    try {
+      localStorage.removeItem('ai_chat_draft');
+    } catch (e) { /* ignore */ }
+    
     router.push('/login');
   };
 
