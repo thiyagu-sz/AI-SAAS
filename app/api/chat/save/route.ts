@@ -7,14 +7,15 @@ export async function POST(request: NextRequest) {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseAnonKey) {
       return NextResponse.json({ error: 'Missing Supabase configuration' }, { status: 500 });
     }
 
-    // Prefer server-side helper with cookie adapter
+    // First, authenticate the user using cookies or bearer token
     const cookieStore = await cookies();
-    const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    const authClient = createServerClient(supabaseUrl, supabaseAnonKey, {
       cookies: {
         get(name: string) {
           return cookieStore.get(name)?.value;
@@ -29,7 +30,7 @@ export async function POST(request: NextRequest) {
     });
 
     // If no user via cookies, we'll later try Authorization bearer token fallback
-    let { data: { user }, error: userError } = await supabase.auth.getUser();
+    let { data: { user }, error: userError } = await authClient.auth.getUser();
     // Fallback: if cookie-based auth failed, try bearer token from header
     if ((userError || !user) && request.headers.get('Authorization')?.startsWith('Bearer ')) {
       const authHeader = request.headers.get('Authorization')!;
@@ -47,6 +48,14 @@ export async function POST(request: NextRequest) {
     if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // Use service role key for database operations (bypasses RLS)
+    // This is safe because we've already verified the user above
+    const supabase = supabaseServiceKey 
+      ? createClient(supabaseUrl, supabaseServiceKey, {
+          auth: { persistSession: false }
+        })
+      : authClient; // Fallback to auth client if no service key
 
     const { title, messages, conversationId } = await request.json();
 

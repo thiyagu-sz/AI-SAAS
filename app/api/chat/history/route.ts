@@ -6,14 +6,15 @@ export async function GET(request: NextRequest) {
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !supabaseAnonKey) {
       return NextResponse.json({ error: 'Missing Supabase configuration' }, { status: 500 });
     }
 
-    // Create Supabase client with cookie support (primary auth method for server routes)
+    // Create Supabase client with cookie support for AUTH
     const cookieStore = await cookies();
-    const supabase = createClient(
+    const authClient = createClient(
       supabaseUrl,
       supabaseAnonKey,
       {
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
     // Try cookie-based auth first (most reliable for Next.js server routes)
     let user = null;
     let authError = null;
-    const cookieAuthResult = await supabase.auth.getUser();
+    const cookieAuthResult = await authClient.auth.getUser();
     user = cookieAuthResult.data.user;
     authError = cookieAuthResult.error;
 
@@ -63,10 +64,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Use service role key for database operations (bypasses RLS)
+    // This is safe because we filter by user_id manually
+    const supabase = supabaseServiceKey 
+      ? createClient(supabaseUrl, supabaseServiceKey, {
+          auth: { persistSession: false }
+        })
+      : authClient;
+
     const searchParams = request.nextUrl.searchParams;
     const limit = parseInt(searchParams.get('limit') || '3');
 
-    // Get recent conversations
+    // Get recent conversations for THIS user only
     const { data: conversations, error } = await supabase
       .from('chat_conversations')
       .select('id, title, created_at, updated_at')
