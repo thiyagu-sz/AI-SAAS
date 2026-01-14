@@ -40,7 +40,7 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState<'gpt-3.5' | 'gpt-4'>('gpt-4');
-  const [saveChat, setSaveChat] = useState(false);
+  const [saveChat, setSaveChat] = useState(true); // Save chats by default
   const [showFormatOptions, setShowFormatOptions] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<FormatType>('key-points');
   const [wordCount, setWordCount] = useState<number>(100);

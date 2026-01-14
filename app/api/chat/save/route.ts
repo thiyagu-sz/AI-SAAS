@@ -9,6 +9,12 @@ export async function POST(request: NextRequest) {
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+    console.log('[chat/save] Environment check:', {
+      hasUrl: !!supabaseUrl,
+      hasAnonKey: !!supabaseAnonKey,
+      hasServiceKey: !!supabaseServiceKey,
+    });
+
     if (!supabaseUrl || !supabaseAnonKey) {
       return NextResponse.json({ error: 'Missing Supabase configuration' }, { status: 500 });
     }
@@ -46,8 +52,11 @@ export async function POST(request: NextRequest) {
     }
 
     if (userError || !user) {
+      console.log('[chat/save] Auth failed:', userError?.message || 'No user');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    console.log('[chat/save] User authenticated:', user.id);
 
     // Use service role key for database operations (bypasses RLS)
     // This is safe because we've already verified the user above
