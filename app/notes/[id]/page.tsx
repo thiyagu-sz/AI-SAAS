@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { getSupabaseClient } from '@/app/lib/supabase';
 import Sidebar from '@/app/components/Sidebar';
+import FeedbackButton from '@/app/components/FeedbackButton';
 import {
   FileText,
   Download,
@@ -492,6 +493,9 @@ export default function NotesViewerPage() {
           </div>
         </main>
       </div>
+
+      {/* Floating Feedback Button */}
+      <FeedbackButton userId={user?.id} userEmail={user?.email} />
     </div>
   );
 }

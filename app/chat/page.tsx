@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getSupabaseClient } from '@/app/lib/supabase';
 import Sidebar from '@/app/components/Sidebar';
 import FeedbackForm from '@/app/components/FeedbackForm';
+import FeedbackButton from '@/app/components/FeedbackButton';
 import { renderMarkdown } from '@/app/lib/markdown';
 import ProfessionalReportGenerator from '@/app/lib/reportGenerator';
 import { 
@@ -439,9 +440,11 @@ ${userInput}`,
       }
 
       // Save user message immediately if saveChat is ON
+      // Store the returned conversation ID to use for assistant message
+      let savedConversationId: string | null = null;
       if (saveChat && currentUser) {
         try {
-          await saveMessageToDatabase(userMessage, currentUser.id);
+          savedConversationId = await saveMessageToDatabase(userMessage, currentUser.id);
         } catch (saveError) {
           console.error('Error saving user message:', saveError);
           // Continue with chat even if save fails
@@ -500,9 +503,10 @@ ${userInput}`,
               });
             } else {
               // Save assistant message if toggle is ON
+              // Pass the conversation ID from when we saved the user message
               if (saveChat && currentUser) {
                 try {
-                  await saveMessageToDatabase(assistantMessage, currentUser.id);
+                  await saveMessageToDatabase(assistantMessage, currentUser.id, savedConversationId);
                 } catch (saveError) {
                   console.error('Error saving assistant message:', saveError);
                   showToastMessage('Chat saved, but failed to save last message. Please try again.');
@@ -574,16 +578,18 @@ ${userInput}`,
   };
 
   // Save a single message to database (creates conversation if needed)
-  const saveMessageToDatabase = async (message: Message, userId: string) => {
+  // Returns the conversation ID (new or existing)
+  const saveMessageToDatabase = async (message: Message, userId: string, existingConvId?: string | null): Promise<string | null> => {
     if (!saveChat) {
-      return; // Don't save if checkbox is OFF
+      return existingConvId || currentConversationId; // Don't save if checkbox is OFF
     }
 
     try {
       const supabase = getSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
 
-      let conversationId = currentConversationId;
+      // Use passed conversation ID or fall back to state
+      let conversationId = existingConvId || currentConversationId;
 
       // Helper to extract useful error info from a non-OK response
       const extractError = async (res: Response) => {
@@ -692,6 +698,8 @@ ${userInput}`,
           window.dispatchEvent(new CustomEvent('chatSaved'));
         }, 300);
       }
+      
+      return conversationId;
     } catch (error) {
       // Only log if it's a real error with content
       if (error instanceof Error) {
@@ -705,6 +713,8 @@ ${userInput}`,
       // Don't show toast for save errors to avoid spam - just log
       throw error; // Re-throw to let caller handle
     }
+    
+    return null; // Fallback return
   };
 
   // Professional PDF export with clean formatting and content cleaning
@@ -1371,7 +1381,7 @@ ${userInput}`,
                             <div className={`leading-relaxed ${
                               message.role === 'user' 
                                 ? 'text-white text-sm' 
-                                : 'text-gray-900 text-sm prose prose-sm max-w-none'
+                                : 'text-gray-900 text-sm max-w-none'
                             }`}>
                               {message.role === 'assistant' ? renderMarkdown(message.content) : message.content}
                             </div>
@@ -1619,6 +1629,9 @@ ${userInput}`,
             }}
           />
         )}
+
+        {/* Floating Feedback Button */}
+        <FeedbackButton userId={user?.id} userEmail={user?.email} />
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseClient } from '@/app/lib/supabase';
 import Sidebar from '@/app/components/Sidebar';
+import FeedbackButton from '@/app/components/FeedbackButton';
 import { 
   Download,
   FileText,
@@ -458,6 +459,9 @@ export default function ExportsPage() {
           </div>
         </main>
       </div>
+
+      {/* Floating Feedback Button */}
+      <FeedbackButton userId={user?.id} userEmail={user?.email} />
     </div>
   );
 }

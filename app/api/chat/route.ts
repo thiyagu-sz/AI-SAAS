@@ -156,7 +156,7 @@ async function streamChatResponse(
         };
         
         console.log('🚀 Chat: Making OpenRouter request');
-        console.log('  - Model: qwen/qwen-2-7b-instruct:free');
+        console.log('  - Model: gryphe/mythomax-l2-13b');
         console.log('  - Key length:', apiKey.length);
         console.log('  - Key preview:', apiKey.substring(0, 15) + '...');
         
@@ -165,7 +165,7 @@ async function streamChatResponse(
           method: 'POST',
           headers,
           body: JSON.stringify({
-            model: 'qwen/qwen-2-7b-instruct:free',
+            model: 'gryphe/mythomax-l2-13b',
             messages: [
               {
                 role: 'system',

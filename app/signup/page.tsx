@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getSupabaseClient } from '@/app/lib/supabase';
+import FeedbackButton from '@/app/components/FeedbackButton';
 import { Mail, Lock, User, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export default function SignupPage() {
@@ -297,6 +298,9 @@ export default function SignupPage() {
           </p>
         </div>
       </div>
+
+      {/* Floating Feedback Button */}
+      <FeedbackButton />
     </div>
   );
 }

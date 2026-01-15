@@ -8,12 +8,12 @@ import {
   MessageSquare, 
   Bookmark, 
   Download, 
-  Settings,
   User,
   LogOut,
   X,
   Menu,
-  Clock
+  Clock,
+  Trash2
 } from 'lucide-react';
 import { getSupabaseClient, clearSupabaseClient } from '@/app/lib/supabase';
 import { useRouter } from 'next/navigation';
@@ -43,6 +43,43 @@ export default function Sidebar({ user }: SidebarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [chatHistory, setChatHistory] = useState<ChatConversation[]>([]);
   const [showAllChats, setShowAllChats] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const handleDeleteChat = async (e: React.MouseEvent, chatId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!confirm('Delete this conversation?')) return;
+    
+    setDeletingId(chatId);
+    try {
+      const supabase = getSupabaseClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch(`/api/chat/delete?id=${chatId}`, {
+        method: 'DELETE',
+        headers: {
+          ...(session?.access_token && { 'Authorization': `Bearer ${session.access_token}` }),
+        },
+      });
+
+      if (response.ok) {
+        // Remove from local state
+        setChatHistory(prev => prev.filter(c => c.id !== chatId));
+        // If we're viewing this chat, redirect to /chat
+        if (pathname === `/chat` && window.location.search.includes(chatId)) {
+          router.push('/chat');
+        }
+      } else {
+        alert('Failed to delete conversation');
+      }
+    } catch (error) {
+      console.error('Error deleting chat:', error);
+      alert('Error deleting conversation');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const loadChatHistory = async (userId: string) => {
     try {
@@ -243,15 +280,24 @@ export default function Sidebar({ user }: SidebarProps) {
             {chatHistory.length > 0 ? (
               <>
                 {chatHistory.map((chat) => (
-                  <Link
-                    key={chat.id}
-                    href={`/chat?id=${chat.id}`}
-                    className="flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors text-gray-700 hover:bg-gray-50 group"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    <MessageSquare className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    <span className="text-sm truncate flex-1">{chat.title}</span>
-                  </Link>
+                  <div key={chat.id} className="group relative">
+                    <Link
+                      href={`/chat?id=${chat.id}`}
+                      className="flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors text-gray-700 hover:bg-gray-50 pr-10"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <MessageSquare className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <span className="text-sm truncate flex-1">{chat.title}</span>
+                    </Link>
+                    <button
+                      onClick={(e) => handleDeleteChat(e, chat.id)}
+                      disabled={deletingId === chat.id}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all disabled:opacity-50"
+                      title="Delete conversation"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 ))}
               </>
             ) : (
@@ -288,18 +334,6 @@ export default function Sidebar({ user }: SidebarProps) {
       </nav>
 
       <div className="p-4 border-t border-gray-200 space-y-2">
-        <Link
-          href="/settings"
-          className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${
-            pathname === '/settings'
-              ? 'bg-blue-50 text-blue-700 font-medium'
-              : 'text-gray-700 hover:bg-gray-50'
-          }`}
-        >
-          <Settings className="w-5 h-5" />
-          <span>Settings</span>
-        </Link>
-
         <div className="bg-gray-50 rounded-lg p-3">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">

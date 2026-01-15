@@ -173,18 +173,18 @@ export default function FeedbackForm({ userId, userEmail, onClose, onSubmitSucce
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-black border border-[#667eea] rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/30 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+      <div className="bg-white border border-gray-200 rounded-t-2xl sm:rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-black border-b border-[#667eea]/30 p-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <MessageSquare className="w-6 h-6 text-[#667eea]" />
-            <h2 className="text-2xl font-bold text-white">Share Your Feedback</h2>
+        <div className="sticky top-0 bg-white border-b border-gray-200 p-4 sm:p-6 flex items-center justify-between rounded-t-2xl">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+            <h2 className="text-lg sm:text-2xl font-bold text-gray-900">Share Your Feedback</h2>
           </div>
           {onClose && (
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-white transition-colors p-1"
+              className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg"
             >
               ✕
             </button>
@@ -192,14 +192,14 @@ export default function FeedbackForm({ userId, userEmail, onClose, onSubmitSucce
         </div>
 
         {/* Form Content */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
           {/* Status Messages */}
           {submitStatus.type && (
             <div
               className={`flex items-start gap-3 p-4 rounded-lg border ${
                 submitStatus.type === 'success'
-                  ? 'bg-green-500/10 border-green-500/30 text-green-200'
-                  : 'bg-red-500/10 border-red-500/30 text-red-200'
+                  ? 'bg-green-50 border-green-200 text-green-700'
+                  : 'bg-red-50 border-red-200 text-red-700'
               }`}
             >
               {submitStatus.type === 'success' ? (
@@ -213,7 +213,7 @@ export default function FeedbackForm({ userId, userEmail, onClose, onSubmitSucce
 
           {/* Rating */}
           <div>
-            <label className="block text-white font-semibold mb-3">
+            <label className="block text-gray-900 font-semibold mb-2 sm:mb-3 text-sm sm:text-base">
               How would you rate your experience?
             </label>
             <div className="flex gap-2">
@@ -222,28 +222,28 @@ export default function FeedbackForm({ userId, userEmail, onClose, onSubmitSucce
                   key={num}
                   type="button"
                   onClick={() => setFormData(prev => ({ ...prev, rating: num }))}
-                  className={`w-12 h-12 rounded-lg font-bold text-lg transition-all ${
+                  className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg font-bold text-base sm:text-lg transition-all ${
                     formData.rating === num
-                      ? 'bg-[#667eea] text-white scale-110'
-                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                      ? 'bg-blue-600 text-white scale-110 shadow-md'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
                   {num}
                 </button>
               ))}
             </div>
-            <p className="text-xs text-gray-400 mt-2">1 = Poor, 5 = Excellent</p>
+            <p className="text-xs text-gray-500 mt-2">1 = Poor, 5 = Excellent</p>
           </div>
 
           {/* Category */}
           <div>
-            <label className="block text-white font-semibold mb-3">
-              Feedback Category <span className="text-red-400">*</span>
+            <label className="block text-gray-900 font-semibold mb-2 sm:mb-3 text-sm sm:text-base">
+              Feedback Category <span className="text-red-500">*</span>
             </label>
             <select
               value={formData.category}
               onChange={e => setFormData(prev => ({ ...prev, category: e.target.value }))}
-              className="w-full bg-gray-900 text-white border border-gray-700 rounded-lg p-3 focus:outline-none focus:border-[#667eea] transition-colors"
+              className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg p-2.5 sm:p-3 text-sm sm:text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-colors"
             >
               {FEEDBACK_CATEGORIES.map(cat => (
                 <option key={cat.value} value={cat.value}>
@@ -256,8 +256,8 @@ export default function FeedbackForm({ userId, userEmail, onClose, onSubmitSucce
           {/* Bug Report - Feature Selection */}
           {formData.category === 'bug' && (
             <div>
-              <label className="block text-white font-semibold mb-3">
-                Which feature has the issue? <span className="text-red-400">*</span>
+              <label className="block text-gray-900 font-semibold mb-2 sm:mb-3 text-sm sm:text-base">
+                Which feature has the issue? <span className="text-red-500">*</span>
               </label>
               <div className="grid grid-cols-2 gap-2">
                 {FEATURE_OPTIONS.map(feature => (
@@ -265,10 +265,10 @@ export default function FeedbackForm({ userId, userEmail, onClose, onSubmitSucce
                     key={feature}
                     type="button"
                     onClick={() => toggleFeature(feature)}
-                    className={`p-3 rounded-lg border transition-all text-sm font-medium ${
+                    className={`p-2.5 sm:p-3 rounded-lg border transition-all text-xs sm:text-sm font-medium ${
                       formData.features?.includes(feature)
-                        ? 'bg-[#667eea] border-[#667eea] text-white'
-                        : 'bg-gray-900 border-gray-700 text-gray-300 hover:border-[#667eea]'
+                        ? 'bg-blue-600 border-blue-600 text-white'
+                        : 'bg-white border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-blue-50'
                     }`}
                   >
                     {feature}
@@ -284,14 +284,14 @@ export default function FeedbackForm({ userId, userEmail, onClose, onSubmitSucce
           {/* Improvement Suggestion */}
           {formData.category === 'improvement' && (
             <div>
-              <label className="block text-white font-semibold mb-3">
-                What could be improved? <span className="text-red-400">*</span>
+              <label className="block text-gray-900 font-semibold mb-2 sm:mb-3 text-sm sm:text-base">
+                What could be improved? <span className="text-red-500">*</span>
               </label>
               <textarea
                 value={formData.improvements || ''}
                 onChange={e => setFormData(prev => ({ ...prev, improvements: e.target.value }))}
                 placeholder="Describe your improvement idea..."
-                className="w-full bg-gray-900 text-white border border-gray-700 rounded-lg p-3 focus:outline-none focus:border-[#667eea] transition-colors min-h-24 resize-none"
+                className="w-full bg-white text-gray-900 border border-gray-300 rounded-lg p-2.5 sm:p-3 text-sm sm:text-base focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-colors min-h-20 sm:min-h-24 resize-none"
               />
               {errors.improvements && (
                 <p className="text-red-400 text-sm mt-1">{errors.improvements}</p>
@@ -301,8 +301,8 @@ export default function FeedbackForm({ userId, userEmail, onClose, onSubmitSucce
 
           {/* Title */}
           <div>
-            <label className="block text-white font-semibold mb-3">
-              Feedback Title <span className="text-red-400">*</span>
+            <label className="block text-gray-900 font-semibold mb-2 sm:mb-3 text-sm sm:text-base">
+              Feedback Title <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -310,13 +310,13 @@ export default function FeedbackForm({ userId, userEmail, onClose, onSubmitSucce
               onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
               placeholder="Brief summary of your feedback"
               maxLength={100}
-              className={`w-full bg-gray-900 text-white border rounded-lg p-3 focus:outline-none transition-colors ${
-                errors.title ? 'border-red-500' : 'border-gray-700 focus:border-[#667eea]'
+              className={`w-full bg-white text-gray-900 border rounded-lg p-2.5 sm:p-3 text-sm sm:text-base focus:outline-none focus:ring-2 transition-colors ${
+                errors.title ? 'border-red-500 focus:ring-red-100' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-100'
               }`}
             />
             <div className="flex justify-between items-center mt-2">
-              {errors.title && <p className="text-red-400 text-sm">{errors.title}</p>}
-              <p className="text-xs text-gray-400 ml-auto">
+              {errors.title && <p className="text-red-500 text-sm">{errors.title}</p>}
+              <p className="text-xs text-gray-500 ml-auto">
                 {formData.title.length}/100
               </p>
             </div>
@@ -324,21 +324,21 @@ export default function FeedbackForm({ userId, userEmail, onClose, onSubmitSucce
 
           {/* Message */}
           <div>
-            <label className="block text-white font-semibold mb-3">
-              Detailed Feedback <span className="text-red-400">*</span>
+            <label className="block text-gray-900 font-semibold mb-2 sm:mb-3 text-sm sm:text-base">
+              Detailed Feedback <span className="text-red-500">*</span>
             </label>
             <textarea
               value={formData.message}
               onChange={e => setFormData(prev => ({ ...prev, message: e.target.value }))}
               placeholder="Please provide detailed feedback. What went well? What could be improved?"
               maxLength={2000}
-              className={`w-full bg-gray-900 text-white border rounded-lg p-3 focus:outline-none transition-colors min-h-32 resize-none ${
-                errors.message ? 'border-red-500' : 'border-gray-700 focus:border-[#667eea]'
+              className={`w-full bg-white text-gray-900 border rounded-lg p-2.5 sm:p-3 text-sm sm:text-base focus:outline-none focus:ring-2 transition-colors min-h-28 sm:min-h-32 resize-none ${
+                errors.message ? 'border-red-500 focus:ring-red-100' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-100'
               }`}
             />
             <div className="flex justify-between items-center mt-2">
-              {errors.message && <p className="text-red-400 text-sm">{errors.message}</p>}
-              <p className="text-xs text-gray-400 ml-auto">
+              {errors.message && <p className="text-red-500 text-sm">{errors.message}</p>}
+              <p className="text-xs text-gray-500 ml-auto">
                 {formData.message.length}/2000
               </p>
             </div>
@@ -346,67 +346,67 @@ export default function FeedbackForm({ userId, userEmail, onClose, onSubmitSucce
 
           {/* Email */}
           <div>
-            <label className="block text-white font-semibold mb-3">
-              Email Address <span className="text-red-400">*</span>
+            <label className="block text-gray-900 font-semibold mb-2 sm:mb-3 text-sm sm:text-base">
+              Email Address <span className="text-red-500">*</span>
             </label>
             <input
               type="email"
               value={formData.email}
               onChange={e => setFormData(prev => ({ ...prev, email: e.target.value }))}
               placeholder="your@email.com"
-              className={`w-full bg-gray-900 text-white border rounded-lg p-3 focus:outline-none transition-colors ${
-                errors.email ? 'border-red-500' : 'border-gray-700 focus:border-[#667eea]'
+              className={`w-full bg-white text-gray-900 border rounded-lg p-2.5 sm:p-3 text-sm sm:text-base focus:outline-none focus:ring-2 transition-colors ${
+                errors.email ? 'border-red-500 focus:ring-red-100' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-100'
               }`}
             />
-            {errors.email && <p className="text-red-400 text-sm mt-1">{errors.email}</p>}
-            <p className="text-xs text-gray-400 mt-1">
+            {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+            <p className="text-xs text-gray-500 mt-1">
               We'll use this to follow up on your feedback if needed
             </p>
           </div>
 
           {/* Recommendation */}
           <div>
-            <label className="flex items-center gap-3 cursor-pointer">
+            <label className="flex items-center gap-2 sm:gap-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={formData.wouldRecommend}
                 onChange={e => setFormData(prev => ({ ...prev, wouldRecommend: e.target.checked }))}
-                className="w-5 h-5 rounded bg-gray-900 border border-gray-700 cursor-pointer accent-[#667eea]"
+                className="w-4 h-4 sm:w-5 sm:h-5 rounded bg-white border border-gray-300 cursor-pointer accent-blue-600"
               />
-              <span className="text-white font-medium">
+              <span className="text-gray-900 font-medium text-sm sm:text-base">
                 I would recommend this app to others
               </span>
             </label>
           </div>
 
           {/* Submit Button */}
-          <div className="flex gap-3 pt-4">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 bg-[#667eea] hover:bg-[#667eea]/80 disabled:bg-gray-600 text-white font-semibold py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  <Send className="w-5 h-5" />
-                  Submit Feedback
-                </>
-              )}
-            </button>
+          <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2 sm:pt-4">
             {onClose && (
               <button
                 type="button"
                 onClick={onClose}
-                className="px-6 bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 rounded-lg transition-colors"
+                className="px-4 sm:px-6 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2.5 sm:py-3 rounded-lg transition-colors text-sm sm:text-base"
               >
                 Cancel
               </button>
             )}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-2.5 sm:py-3 rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm text-sm sm:text-base"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 sm:w-5 sm:h-5" />
+                  Submit Feedback
+                </>
+              )}
+            </button>
           </div>
         </form>
       </div>

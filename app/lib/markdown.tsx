@@ -49,8 +49,8 @@ export function renderMarkdown(text: string): React.ReactNode {
       flushList();
       flushParagraph();
       elements.push(
-        <h3 key={elements.length} className="text-lg font-semibold mt-4 mb-2 text-gray-900">
-          {trimmed.slice(4)}
+        <h3 key={elements.length} className="text-base font-bold mt-4 mb-2 text-gray-900 !text-base">
+          {formatInlineMarkdown(trimmed.slice(4))}
         </h3>
       );
       return;
@@ -59,8 +59,8 @@ export function renderMarkdown(text: string): React.ReactNode {
       flushList();
       flushParagraph();
       elements.push(
-        <h2 key={elements.length} className="text-xl font-semibold mt-4 mb-2 text-gray-900">
-          {trimmed.slice(3)}
+        <h2 key={elements.length} className="text-lg font-bold mt-4 mb-2 text-gray-900 !text-lg">
+          {formatInlineMarkdown(trimmed.slice(3))}
         </h2>
       );
       return;
@@ -69,8 +69,8 @@ export function renderMarkdown(text: string): React.ReactNode {
       flushList();
       flushParagraph();
       elements.push(
-        <h1 key={elements.length} className="text-2xl font-bold mt-4 mb-3 text-gray-900">
-          {trimmed.slice(2)}
+        <h1 key={elements.length} className="text-xl font-bold mt-4 mb-3 text-gray-900 !text-xl">
+          {formatInlineMarkdown(trimmed.slice(2))}
         </h1>
       );
       return;

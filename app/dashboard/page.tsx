@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseClient } from '@/app/lib/supabase';
 import Sidebar from '@/app/components/Sidebar';
+import FeedbackButton from '@/app/components/FeedbackButton';
 import { 
   FileText, 
   Sparkles, 
@@ -18,8 +19,7 @@ import {
   AlertCircle,
   X,
   Bookmark,
-  BookmarkCheck,
-  MessageSquare
+  BookmarkCheck
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -43,11 +43,6 @@ export default function DashboardPage() {
     topicsGenerated: 0,
     lastStudySession: 'No study sessions yet',
   });
-  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
-  const [feedbackEmail, setFeedbackEmail] = useState('');
-  const [feedbackMessage, setFeedbackMessage] = useState('');
-  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
-  const [feedbackSuccess, setFeedbackSuccess] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -60,7 +55,6 @@ export default function DashboardPage() {
       }
 
       setUser(currentUser);
-      setFeedbackEmail(currentUser.email || '');
       await fetchDocuments();
       await loadSavedFolders();
       setLoading(false);
@@ -492,161 +486,8 @@ export default function DashboardPage() {
         </main>
       </div>
 
-      {/* Feedback Button - Fixed Bottom Right */}
-      <button
-        onClick={() => setShowFeedbackModal(true)}
-        className="fixed bottom-6 right-6 z-50 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 shadow-lg hover:shadow-xl transition-all flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16"
-        aria-label="Send feedback"
-      >
-        <MessageSquare className="w-6 h-6 sm:w-7 sm:h-7" />
-      </button>
-
-      {/* Feedback Modal */}
-      {showFeedbackModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black bg-opacity-50">
-          <div className="bg-white rounded-t-2xl sm:rounded-lg shadow-xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto safe-area-bottom">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between rounded-t-2xl sm:rounded-t-lg">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Send Feedback</h2>
-              <button
-                onClick={() => {
-                  setShowFeedbackModal(false);
-                  setFeedbackMessage('');
-                  setFeedbackSuccess(false);
-                }}
-                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            
-            <div className="p-4 sm:p-6">
-              {feedbackSuccess ? (
-                <div className="text-center py-6 sm:py-8">
-                  <CheckCircle2 className="w-12 h-12 sm:w-16 sm:h-16 text-green-500 mx-auto mb-4" />
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">Thanks for your feedback!</h3>
-                  <p className="text-gray-600 text-sm">We appreciate your input and will use it to improve our service.</p>
-                  <button
-                    onClick={() => {
-                      setShowFeedbackModal(false);
-                      setFeedbackMessage('');
-                      setFeedbackSuccess(false);
-                    }}
-                    className="mt-6 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors w-full sm:w-auto"
-                  >
-                    Close
-                  </button>
-                </div>
-              ) : (
-                <form
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-
-                    if (!feedbackEmail.trim() || !feedbackMessage.trim()) {
-                      alert('Please fill out all required fields');
-                      return;
-                    }
-
-                    setFeedbackSubmitting(true);
-                    try {
-                      const feedbackData = {
-                        userId: user?.id || null,
-                        rating: 5,
-                        category: 'feedback',
-                        title: 'Dashboard Feedback',
-                        message: feedbackMessage.trim(),
-                        email: feedbackEmail.trim(),
-                        features: [],
-                        improvements: null,
-                        wouldRecommend: true,
-                        timestamp: new Date().toISOString(),
-                      };
-
-                      const response = await fetch('/api/feedback', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(feedbackData),
-                      });
-
-                      const responseData = await response.json();
-
-                      if (!response.ok) {
-                        throw new Error(responseData.error || 'Failed to submit feedback');
-                      }
-
-                      setFeedbackSuccess(true);
-                      setFeedbackMessage('');
-                    } catch (error) {
-                      console.error('Error submitting feedback:', error);
-                      alert('Failed to submit feedback. Please try again later.');
-                    } finally {
-                      setFeedbackSubmitting(false);
-                    }
-                  }}
-                  className="space-y-4"
-                >
-                  <div>
-                    <label htmlFor="feedback-email" className="block text-sm font-medium text-gray-700 mb-2">
-                      Email
-                    </label>
-                    <input
-                      id="feedback-email"
-                      type="email"
-                      value={feedbackEmail}
-                      onChange={(e) => setFeedbackEmail(e.target.value)}
-                      required
-                      className="w-full px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-base sm:text-sm"
-                      placeholder="your@email.com"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label htmlFor="feedback-message" className="block text-sm font-medium text-gray-700 mb-2">
-                      What would you like to share?
-                    </label>
-                    <textarea
-                      id="feedback-message"
-                      value={feedbackMessage}
-                      onChange={(e) => setFeedbackMessage(e.target.value)}
-                      required
-                      rows={5}
-                      className="w-full px-3 sm:px-4 py-2.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none resize-none text-base sm:text-sm"
-                      placeholder="Your feedback, suggestions, or issues..."
-                    />
-                  </div>
-                  
-                  <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowFeedbackModal(false);
-                        setFeedbackMessage('');
-                      }}
-                      className="flex-1 px-4 py-2.5 sm:py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={!feedbackEmail.trim() || !feedbackMessage.trim() || feedbackSubmitting}
-                      className="flex-1 px-4 py-2.5 sm:py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                    >
-                      {feedbackSubmitting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                          Sending...
-                        </>
-                      ) : (
-                        'Send Feedback'
-                      )}
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Floating Feedback Button */}
+      <FeedbackButton userId={user?.id} userEmail={user?.email} />
     </div>
   );
 }

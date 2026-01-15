@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getSupabaseClient } from '@/app/lib/supabase';
 import Sidebar from '@/app/components/Sidebar';
+import FeedbackButton from '@/app/components/FeedbackButton';
 import { 
   Upload as UploadIcon, 
   FileText, 
@@ -541,12 +542,9 @@ export default function UploadPage() {
                 style={{ width: `${(storageUsed / storageTotal) * 100}%` }}
               />
             </div>
-            <Link
-              href="/settings"
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-            >
-              Upgrade
-            </Link>
+            <span className="text-sm text-gray-500">
+              {storageTotal - storageUsed} GB available
+            </span>
           </div>
         </aside>
       </div>
@@ -632,6 +630,9 @@ export default function UploadPage() {
           </div>
         </div>
       )}
+
+      {/* Floating Feedback Button */}
+      <FeedbackButton userId={user?.id} userEmail={user?.email} />
     </div>
   );
 }

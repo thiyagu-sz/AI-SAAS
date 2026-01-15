@@ -354,7 +354,7 @@ async function generateAINotes(text: string): Promise<string> {
         'X-Title': 'QuickNotes',
       },
       body: JSON.stringify({
-        model: 'qwen/qwen-2-7b-instruct:free',
+        model: 'gryphe/mythomax-l2-13b',
         messages: [
           {
             role: 'system',
