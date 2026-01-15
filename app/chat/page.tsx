@@ -1204,33 +1204,39 @@ ${userInput}`,
         
         showToastMessage('Generating PDF...');
         
-        const response = await fetch('/api/chat/pdf', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            html: htmlDocument,
-            filename: `${cleanTitle}.pdf`,
-          }),
-        });
+        try {
+          const response = await fetch('/api/chat/pdf', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              html: htmlDocument,
+              filename: `${cleanTitle}.pdf`,
+            }),
+          });
 
-        if (!response.ok) {
-          throw new Error(`PDF generation failed: ${response.statusText}`);
+          if (!response.ok) {
+            throw new Error(`PDF generation failed: ${response.statusText}`);
+          }
+
+          // Download the PDF
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${cleanTitle}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          
+          showToastMessage('PDF downloaded successfully');
+        } catch (pdfError) {
+          console.error('PDF export error:', pdfError);
+          showToastMessage('PDF export failed. Please try downloading as text instead.');
+          throw pdfError;
         }
-
-        // Download the PDF
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${cleanTitle}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        showToastMessage('PDF downloaded successfully');
       } else if (type === 'doc') {
         // Simple DOC export
         const cleanContent = messageContent.replace(/[*#\[\]]/g, ''); 

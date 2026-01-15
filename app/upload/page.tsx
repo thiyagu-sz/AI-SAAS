@@ -11,8 +11,7 @@ import {
   FileText, 
   X, 
   CheckCircle2,
-  Loader2,
-  HardDrive
+  Loader2
 } from 'lucide-react';
 
 interface UploadingFile {
@@ -42,9 +41,8 @@ export default function UploadPage() {
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
   const [recentUploads, setRecentUploads] = useState<RecentUpload[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  const [storageUsed] = useState(7.5); // GB
-  const [storageTotal] = useState(10); // GB
   const [showCollectionModal, setShowCollectionModal] = useState(false);
+  const [showWorkInProgress, setShowWorkInProgress] = useState(false);
   const [collectionName, setCollectionName] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -346,8 +344,9 @@ export default function UploadPage() {
       return;
     }
 
-    // Store selected files and show collection name modal
+    // Store selected files and show work-in-progress message
     setSelectedFiles(validFiles);
+    setShowWorkInProgress(true);
     setShowCollectionModal(true);
   }, []);
 
@@ -542,27 +541,7 @@ export default function UploadPage() {
             </>
           )}
 
-          {/* Storage Indicator */}
-          <div className="mt-8 pt-8 border-t border-gray-200">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <HardDrive className="w-4 h-4 text-gray-600" />
-                <span className="text-sm font-medium text-gray-900">Storage</span>
-              </div>
-              <span className="text-sm text-gray-600">
-                {storageUsed} GB used
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-              <div
-                className="bg-blue-600 h-2 rounded-full"
-                style={{ width: `${(storageUsed / storageTotal) * 100}%` }}
-              />
-            </div>
-            <span className="text-sm text-gray-500">
-              {storageTotal - storageUsed} GB available
-            </span>
-          </div>
+
         </aside>
       </div>
 
@@ -590,6 +569,30 @@ export default function UploadPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Work In Progress Modal */}
+      {showWorkInProgress && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <div className="flex items-center justify-center w-12 h-12 mx-auto bg-blue-100 rounded-full mb-4">
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-center text-gray-900 mb-2">Feature Coming Soon</h3>
+            <p className="text-center text-gray-600 mb-4">Document upload and processing is currently being developed. We're working hard to bring this feature to you!</p>
+            <button
+              onClick={() => {
+                setShowWorkInProgress(false);
+                setSelectedFiles([]);
+              }}
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+            >
+              Got It
+            </button>
           </div>
         </div>
       )}
