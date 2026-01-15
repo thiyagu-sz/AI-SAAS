@@ -1199,10 +1199,10 @@ ${userInput}`,
       const cleanTitle = title.replace(/[^a-z0-9]/gi, '_');
 
       if (type === 'pdf') {
-        // Generate professional PDF using server-side Puppeteer
+        // Generate document (text/markdown format for reliability)
         const htmlDocument = generateProfessionalPDF(messageContent, title);
         
-        showToastMessage('Generating PDF...');
+        showToastMessage('Preparing document...');
         
         try {
           const response = await fetch('/api/chat/pdf', {
@@ -1212,30 +1212,45 @@ ${userInput}`,
             },
             body: JSON.stringify({
               html: htmlDocument,
-              filename: `${cleanTitle}.pdf`,
+              filename: `${cleanTitle}.txt`,
             }),
           });
 
           if (!response.ok) {
-            throw new Error(`PDF generation failed: ${response.statusText}`);
+            throw new Error(`Document generation failed: ${response.statusText}`);
           }
 
-          // Download the PDF
+          // Download the document
           const blob = await response.blob();
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `${cleanTitle}.pdf`;
+          a.download = `${cleanTitle}.txt`;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
           
-          showToastMessage('PDF downloaded successfully');
+          showToastMessage('Document downloaded! For PDF, use browser Print → Save as PDF');
         } catch (pdfError) {
-          console.error('PDF export error:', pdfError);
-          showToastMessage('PDF export failed. Please try downloading as text instead.');
-          throw pdfError;
+          console.error('Document export error:', pdfError);
+          showToastMessage('Trying alternative export...');
+          // Fallback: Download as markdown
+          try {
+            const markdownBlob = new Blob([messageContent], { type: 'text/markdown' });
+            const url = URL.createObjectURL(markdownBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${cleanTitle}.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToastMessage('Downloaded as Markdown file');
+          } catch (fallbackError) {
+            console.error('Fallback export error:', fallbackError);
+            showToastMessage('Could not export. Try copy-paste instead.');
+          }
         }
       } else if (type === 'doc') {
         // Simple DOC export

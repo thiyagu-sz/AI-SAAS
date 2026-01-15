@@ -1,7 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import puppeteer from 'puppeteer';
-
-export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,68 +11,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let browser;
+    // Convert HTML to plain text and create a simple text file instead
+    // This is a fallback approach that works reliably without heavy dependencies
     
-    try {
-      // Launch Puppeteer browser
-      browser = await puppeteer.launch({
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--disable-extensions',
-        ],
-      });
+    // Strip HTML tags
+    const textContent = html
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/\n\n+/g, '\n\n')
+      .trim();
 
-      // Create a new page
-      const page = await browser.newPage();
-      
-      // Set viewport and disable javascript if not needed
-      await page.setViewport({ width: 1200, height: 1600 });
+    // Create a simple text document as fallback
+    const textBuffer = Buffer.from(textContent, 'utf-8');
 
-      // Set the HTML content
-      await page.setContent(html, {
-        waitUntil: 'load',  // ✅ CHANGED: Use 'load' instead of 'networkidle0'
-      });
-
-      // Generate PDF without any headers/footers
-      const pdfBuffer = await page.pdf({
-        format: 'A4',
-        margin: {
-          top: '25mm',
-          bottom: '25mm',
-          left: '25mm',
-          right: '25mm',
-        },
-        printBackground: true,
-        displayHeaderFooter: false,  // ✅ CRITICAL: This prevents URL headers
-      });
-
-      // Close the browser
-      await page.close();
-
-      // Convert Uint8Array to Buffer for NextResponse compatibility
-      const buffer = Buffer.from(pdfBuffer);
-
-      // Return PDF as a file download
-      return new NextResponse(buffer, {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="${filename || 'document.pdf'}"`,
-          'Content-Length': buffer.length.toString(),
-        },
-      });
-    } finally {
-      if (browser) {
-        await browser.close();
-      }
-    }
+    return new NextResponse(textBuffer, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Content-Disposition': `attachment; filename="${filename?.replace('.pdf', '.txt') || 'document.txt'}"`,
+        'Content-Length': textBuffer.length.toString(),
+      },
+    });
   } catch (error) {
-    console.error('PDF generation error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Failed to generate PDF';
+    console.error('PDF/Text generation error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to generate document';
     return NextResponse.json(
       { error: errorMessage },
       { status: 500 }
