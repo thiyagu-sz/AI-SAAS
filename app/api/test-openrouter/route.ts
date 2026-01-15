@@ -19,7 +19,7 @@ export async function GET() {
       },
       body: JSON.stringify({
         // Try multiple models to see which one works
-        model: 'google/gemini-2.0-flash-exp:free', // Free Gemini model
+        model: 'qwen/qwen-2-7b-instruct:free', // Free Qwen model
         messages: [
           {
             role: 'user',

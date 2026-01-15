@@ -117,13 +117,19 @@ export async function POST(request: NextRequest) {
       });
 
       if (newMessages.length > 0) {
-        const messagesToInsert = newMessages.map((msg: { role: string; content: string; sources?: any }) => ({
-          conversation_id: conversation!.id,
-          user_id: user.id,  // IMPORTANT: Include user_id for RLS
-          role: msg.role,
-          content: msg.content,
-          sources: msg.sources || null,
-        }));
+        const messagesToInsert = newMessages.map((msg: { role: string; content: string; sources?: any }) => {
+          const messageData: any = {
+            conversation_id: conversation!.id,
+            user_id: user.id,  // IMPORTANT: Include user_id for RLS
+            role: msg.role,
+            content: msg.content,
+          };
+          // Only add sources if it exists (column may not exist in older schemas)
+          if (msg.sources) {
+            messageData.sources = msg.sources;
+          }
+          return messageData;
+        });
 
         const { error: messagesError } = await supabase
           .from('chat_messages')
@@ -174,13 +180,19 @@ export async function POST(request: NextRequest) {
       conversation = newConv as { id: string; title?: string };
 
       // Insert all messages for new conversation
-      const messagesToInsert = messages.map((msg: { role: string; content: string; sources?: any }) => ({
-        conversation_id: conversation!.id,
-        user_id: user.id,  // IMPORTANT: Include user_id for RLS
-        role: msg.role,
-        content: msg.content,
-        sources: msg.sources || null,
-      }));
+      const messagesToInsert = messages.map((msg: { role: string; content: string; sources?: any }) => {
+        const messageData: any = {
+          conversation_id: conversation!.id,
+          user_id: user.id,  // IMPORTANT: Include user_id for RLS
+          role: msg.role,
+          content: msg.content,
+        };
+        // Only add sources if it exists (column may not exist in older schemas)
+        if (msg.sources) {
+          messageData.sources = msg.sources;
+        }
+        return messageData;
+      });
 
       const { error: messagesError } = await supabase
         .from('chat_messages')

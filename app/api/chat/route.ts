@@ -156,7 +156,7 @@ async function streamChatResponse(
         };
         
         console.log('🚀 Chat: Making OpenRouter request');
-        console.log('  - Model: google/gemini-2.0-flash-exp:free');
+        console.log('  - Model: qwen/qwen-2-7b-instruct:free');
         console.log('  - Key length:', apiKey.length);
         console.log('  - Key preview:', apiKey.substring(0, 15) + '...');
         
@@ -165,7 +165,7 @@ async function streamChatResponse(
           method: 'POST',
           headers,
           body: JSON.stringify({
-            model: 'google/gemini-2.0-flash-exp:free',
+            model: 'qwen/qwen-2-7b-instruct:free',
             messages: [
               {
                 role: 'system',
