@@ -156,7 +156,7 @@ async function streamChatResponse(
         };
         
         console.log('🚀 Chat: Making OpenRouter request');
-        console.log('  - Model: meta-llama/llama-3.2-3b-instruct:free');
+        console.log('  - Model: meta-llama/llama-3.1-8b-instruct:free');
         console.log('  - Key length:', apiKey.length);
         console.log('  - Key preview:', apiKey.substring(0, 15) + '...');
         
@@ -165,7 +165,7 @@ async function streamChatResponse(
           method: 'POST',
           headers,
           body: JSON.stringify({
-            model: 'meta-llama/llama-3.2-3b-instruct:free',
+            model: 'meta-llama/llama-3.1-8b-instruct:free',
             messages: [
               {
                 role: 'system',

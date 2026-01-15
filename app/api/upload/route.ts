@@ -354,7 +354,7 @@ async function generateAINotes(text: string): Promise<string> {
         'X-Title': 'QuickNotes',
       },
       body: JSON.stringify({
-        model: 'meta-llama/llama-3.2-3b-instruct:free',
+        model: 'meta-llama/llama-3.1-8b-instruct:free',
         messages: [
           {
             role: 'system',

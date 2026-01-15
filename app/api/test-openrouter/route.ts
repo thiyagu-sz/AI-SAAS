@@ -19,7 +19,7 @@ export async function GET() {
       },
       body: JSON.stringify({
         // Try multiple models to see which one works
-        model: 'meta-llama/llama-3.2-3b-instruct:free', // Try this first - more commonly available
+        model: 'meta-llama/llama-3.1-8b-instruct:free', // Free LLaMA model
         messages: [
           {
             role: 'user',
