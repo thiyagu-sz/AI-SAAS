@@ -33,6 +33,8 @@ interface RecentUpload {
   status: 'processing' | 'completed';
 }
 
+type FormatType = 'key-points' | 'main-concepts' | 'exam-points' | 'short-notes' | 'speech-notes' | 'presentation-notes' | 'summary';
+
 export default function UploadPage() {
   const router = useRouter();
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
@@ -46,6 +48,19 @@ export default function UploadPage() {
   const [collectionName, setCollectionName] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [outputFormat, setOutputFormat] = useState<FormatType>('key-points');
+  const [wordCount, setWordCount] = useState(100);
+  const [customWordCount, setCustomWordCount] = useState('');
+
+  const formatOptions: Array<{ value: FormatType; label: string }> = [
+    { value: 'key-points', label: 'Key Points' },
+    { value: 'main-concepts', label: 'Main Concepts' },
+    { value: 'exam-points', label: 'Exam Points' },
+    { value: 'short-notes', label: 'Short Notes' },
+    { value: 'speech-notes', label: 'Speech Notes' },
+    { value: 'presentation-notes', label: 'Presentation Notes' },
+    { value: 'summary', label: 'Summary' },
+  ];
 
   const fetchRecentUploads = useCallback(async () => {
     try {
@@ -219,6 +234,8 @@ export default function UploadPage() {
 
       const formData = new FormData();
       formData.append('collectionName', collectionName.trim());
+      formData.append('outputType', outputFormat);
+      formData.append('wordCount', (customWordCount || wordCount).toString());
       selectedFiles.forEach((file) => {
         formData.append('files', file);
       });
@@ -604,6 +621,61 @@ export default function UploadPage() {
                 }
               }}
             />
+            
+            {/* Output Format Selection */}
+            <div className="mb-4">
+              <h3 className="text-xs sm:text-sm font-semibold text-gray-900 mb-2">How do you want the output?</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
+                {formatOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setOutputFormat(option.value)}
+                    className={`px-3 py-2 text-xs sm:text-sm rounded-lg border transition-colors ${
+                      outputFormat === option.value
+                        ? 'bg-blue-50 border-blue-500 text-blue-700 font-medium'
+                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                <label className="text-xs sm:text-sm text-gray-700 whitespace-nowrap">Word count:</label>
+                <div className="flex flex-wrap gap-2">
+                  {[50, 100, 200].map((count) => (
+                    <button
+                      key={count}
+                      type="button"
+                      onClick={() => {
+                        setWordCount(count);
+                        setCustomWordCount('');
+                      }}
+                      className={`px-3 py-1.5 text-xs sm:text-sm rounded-lg border transition-colors ${
+                        wordCount === count && !customWordCount
+                          ? 'bg-blue-50 border-blue-500 text-blue-700 font-medium'
+                          : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {count}
+                    </button>
+                  ))}
+                  <input
+                    type="number"
+                    placeholder="Custom"
+                    value={customWordCount}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCustomWordCount(val);
+                      if (val) setWordCount(parseInt(val) || 100);
+                    }}
+                    className="w-20 px-2 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+            
             <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
               <button
                 onClick={() => {

@@ -156,6 +156,34 @@ export default function ChatPage() {
     return userId ? `ai_chat_draft_${userId}` : 'ai_chat_draft';
   }, []);
 
+  // Load conversation from API
+  const loadConversation = useCallback(async (conversationId: string) => {
+    try {
+      const supabase = getSupabaseClient();
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const response = await fetch(`/api/chat/load?id=${conversationId}`, {
+        headers: {
+          ...(session?.access_token && { 'Authorization': `Bearer ${session.access_token}` }),
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const loadedMessages: Message[] = data.messages.map((msg: any) => ({
+          id: msg.id,
+          role: msg.role,
+          content: sanitizeContent(msg.content),
+          sources: msg.sources,
+          timestamp: new Date(msg.created_at),
+        }));
+        setMessages(loadedMessages);
+      }
+    } catch (error) {
+      console.error('Error loading conversation:', error);
+    }
+  }, []);
+
   // Clear any non-user-specific draft on mount (migration cleanup)
   useEffect(() => {
     try {
@@ -238,33 +266,6 @@ export default function ChatPage() {
       console.error('Failed to restore chat draft:', e);
     }
   }, [loading, currentConversationId, user?.id, getStorageKey]);
-
-  const loadConversation = async (conversationId: string) => {
-    try {
-      const supabase = getSupabaseClient();
-      const { data: { session } } = await supabase.auth.getSession();
-
-      const response = await fetch(`/api/chat/load?id=${conversationId}`, {
-        headers: {
-          ...(session?.access_token && { 'Authorization': `Bearer ${session.access_token}` }),
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const loadedMessages: Message[] = data.messages.map((msg: any) => ({
-          id: msg.id,
-          role: msg.role,
-          content: sanitizeContent(msg.content),
-          sources: msg.sources,
-          timestamp: new Date(msg.created_at),
-        }));
-        setMessages(loadedMessages);
-      }
-    } catch (error) {
-      console.error('Error loading conversation:', error);
-    }
-  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

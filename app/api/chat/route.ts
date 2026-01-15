@@ -156,7 +156,7 @@ async function streamChatResponse(
         };
         
         console.log('🚀 Chat: Making OpenRouter request');
-        console.log('  - Model: gryphe/mythomax-l2-13b');
+        console.log('  - Model: tngtech/deepseek-r1t2-chimera:free');
         console.log('  - Key length:', apiKey.length);
         console.log('  - Key preview:', apiKey.substring(0, 15) + '...');
         
@@ -165,7 +165,7 @@ async function streamChatResponse(
           method: 'POST',
           headers,
           body: JSON.stringify({
-            model: 'gryphe/mythomax-l2-13b',
+            model: 'tngtech/deepseek-r1t2-chimera:free',
             messages: [
               {
                 role: 'system',

@@ -17,7 +17,7 @@ export default function FeedbackButton({ userId, userEmail }: FeedbackButtonProp
       {/* Floating Feedback Button */}
       <button
         onClick={() => setShowFeedback(true)}
-        className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 bg-blue-600 hover:bg-blue-700 text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transition-all z-40 group"
+        className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 bg-blue-600 hover:bg-blue-700 text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transition-all z-40 group"
         title="Send Feedback"
         aria-label="Send Feedback"
       >

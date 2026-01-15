@@ -174,7 +174,7 @@ export default function FeedbackForm({ userId, userEmail, onClose, onSubmitSucce
 
   return (
     <div className="fixed inset-0 bg-black/30 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
-      <div className="bg-white border border-gray-200 rounded-t-2xl sm:rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white border border-gray-200 rounded-t-2xl sm:rounded-2xl shadow-xl max-w-2xl w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-200 p-4 sm:p-6 flex items-center justify-between rounded-t-2xl">
           <div className="flex items-center gap-2 sm:gap-3">
@@ -192,7 +192,7 @@ export default function FeedbackForm({ userId, userEmail, onClose, onSubmitSucce
         </div>
 
         {/* Form Content */}
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-3 sm:space-y-6 overflow-y-auto flex-1">
           {/* Status Messages */}
           {submitStatus.type && (
             <div
@@ -380,7 +380,7 @@ export default function FeedbackForm({ userId, userEmail, onClose, onSubmitSucce
           </div>
 
           {/* Submit Button */}
-          <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2 sm:pt-4">
+          <div className="sticky bottom-0 bg-white border-t border-gray-100 p-4 sm:p-0 sm:bg-transparent sm:border-t-0 flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-2 sm:pt-4">
             {onClose && (
               <button
                 type="button"

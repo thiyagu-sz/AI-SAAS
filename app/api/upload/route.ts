@@ -332,7 +332,115 @@ async function generateEmbedding(text: string): Promise<number[]> {
   return data.data[0].embedding;
 }
 
-async function generateAINotes(text: string): Promise<string> {
+type FormatType = 'key-points' | 'main-concepts' | 'exam-points' | 'short-notes' | 'speech-notes' | 'presentation-notes' | 'summary';
+
+function generateFormatPrompt(format: FormatType, wordCount: number): { systemPrompt: string; userPromptPrefix: string } {
+  const formatPrompts: Record<FormatType, { systemPrompt: string; userPromptPrefix: string }> = {
+    'key-points': {
+      systemPrompt: `You are an expert study assistant. Extract and organize KEY POINTS from study materials.
+
+REQUIREMENTS:
+- Use markdown formatting (# for headings, - for bullet points)
+- Focus ONLY on the most important information
+- Use clear headings (##) to organize sections
+- Use bullet points (-) for key points
+- Use **bold** for important terms
+- Keep paragraphs short (max 2-3 sentences)
+- Limit to EXACTLY ${wordCount} words
+- Structure: Main Topic → Key Points → Important Details
+- Make it exam-friendly and readable`,
+      userPromptPrefix: 'Extract and organize KEY POINTS from this study material. Focus on the most important information only:'
+    },
+    'main-concepts': {
+      systemPrompt: `You are an expert study assistant. Identify and explain the MAIN CONCEPTS from study materials.
+
+REQUIREMENTS:
+- Use markdown formatting (# for headings, - for lists)
+- Provide clear definitions and explanations
+- Use headings (##) for each main concept
+- Use bullet points for supporting details
+- Use **bold** for key terms and definitions
+- Keep it structured and organized
+- Limit to EXACTLY ${wordCount} words
+- Make content clear and exam-friendly`,
+      userPromptPrefix: 'Identify and explain the MAIN CONCEPTS from this study material:'
+    },
+    'exam-points': {
+      systemPrompt: `You are an expert study assistant. Create EXAM-FOCUSED NOTES from study materials.
+
+REQUIREMENTS:
+- Use markdown formatting (# for headings, - for bullet points)
+- Highlight information likely to appear in exams
+- Include definitions, formulas, dates, names, and key facts
+- Use headings (##) to organize by topic
+- Use bullet points for key facts
+- Use **bold** for important terms
+- Keep paragraphs very short
+- Limit to EXACTLY ${wordCount} words
+- Structure for quick review and memorization`,
+      userPromptPrefix: 'Create EXAM-FOCUSED NOTES from this study material:'
+    },
+    'short-notes': {
+      systemPrompt: `You are an expert study assistant. Create SHORT NOTES from study materials.
+
+REQUIREMENTS:
+- Use markdown formatting (# for headings, - for bullet points)
+- Keep it concise and organized
+- Use clear headings (##) for sections
+- Use bullet points for key information
+- Focus on essential information only
+- Limit to EXACTLY ${wordCount} words
+- Make it easy to scan and review`,
+      userPromptPrefix: 'Create SHORT NOTES from this study material:'
+    },
+    'speech-notes': {
+      systemPrompt: `You are an expert study assistant. Create SPEECH NOTES from study materials.
+
+REQUIREMENTS:
+- Use markdown formatting (# for headings, - for bullet points)
+- Structure for verbal presentation
+- Use headings (##) for main sections
+- Use bullet points for talking points
+- Keep it conversational and easy to follow
+- Use **bold** for emphasis points
+- Limit to EXACTLY ${wordCount} words
+- Make it suitable for speaking`,
+      userPromptPrefix: 'Create SPEECH NOTES from this study material:'
+    },
+    'presentation-notes': {
+      systemPrompt: `You are an expert study assistant. Create PRESENTATION NOTES from study materials.
+
+REQUIREMENTS:
+- Use markdown formatting (# for headings, - for bullet points)
+- Structure for slide-by-slide presentation
+- Use headings (##) for each slide topic
+- Use bullet points for slide content
+- Keep points concise and visual
+- Use **bold** for emphasis
+- Limit to EXACTLY ${wordCount} words
+- Make it suitable for presenting`,
+      userPromptPrefix: 'Create PRESENTATION NOTES from this study material:'
+    },
+    'summary': {
+      systemPrompt: `You are an expert study assistant. Create a comprehensive SUMMARY from study materials.
+
+REQUIREMENTS:
+- Use markdown formatting (# for headings, - for bullet points)
+- Provide a comprehensive overview
+- Use clear headings (##) for major sections
+- Use bullet points for key information
+- Balance detail with conciseness
+- Use **bold** for important concepts
+- Limit to EXACTLY ${wordCount} words
+- Make it complete yet readable`,
+      userPromptPrefix: 'Create a comprehensive SUMMARY from this study material:'
+    },
+  };
+
+  return formatPrompts[format] || formatPrompts['key-points'];
+}
+
+async function generateAINotes(text: string, outputType: FormatType = 'key-points', wordCount: number = 100): Promise<string> {
   const apiKey = process.env.OPENROUTER_API_KEY?.trim();
   
   if (!apiKey) {
@@ -345,6 +453,9 @@ async function generateAINotes(text: string): Promise<string> {
     // Reduced from 12000 to 8000 to prevent memory problems
     const textToProcess = text.length > 8000 ? text.substring(0, 8000) + '\n\n[Content truncated for processing...]' : text;
     
+    // Get format-specific prompts
+    const { systemPrompt, userPromptPrefix } = generateFormatPrompt(outputType, wordCount);
+    
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -354,37 +465,15 @@ async function generateAINotes(text: string): Promise<string> {
         'X-Title': 'QuickNotes',
       },
       body: JSON.stringify({
-        model: 'gryphe/mythomax-l2-13b',
+        model: 'tngtech/deepseek-r1t2-chimera:free',
         messages: [
           {
             role: 'system',
-            content: `You are an expert study assistant. Your task is to extract and organize KEY NOTES from study materials.
-
-IMPORTANT INSTRUCTIONS:
-1. Extract only the MOST IMPORTANT and KEY information
-2. Organize notes with clear headings and subheadings
-3. Use bullet points for key concepts
-4. Highlight definitions, formulas, dates, names, and critical facts
-5. Focus on information that would appear in exams
-6. Remove redundant or less important information
-7. Format with markdown (use # for headings, - for bullets, ** for emphasis)
-8. Keep it concise but comprehensive
-9. Structure: Main Topic → Key Points → Important Details
-
-Example format:
-# [Main Topic]
-## Key Concept 1
-- Important point 1
-- Important point 2
-- **Definition**: [key definition]
-
-## Key Concept 2
-- Important point 1
-- **Formula/Date/Name**: [specific detail]`,
+            content: systemPrompt,
           },
           {
             role: 'user',
-            content: `Extract and organize KEY NOTES from this study material. Focus on the most important information only:\n\n${textToProcess}`,
+            content: `${userPromptPrefix}\n\n${textToProcess}`,
           },
         ],
         temperature: 0.3, // Lower temperature for more focused, factual notes
@@ -463,6 +552,8 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const collectionName = formData.get('collectionName') as string;
     const files = formData.getAll('files') as File[];
+    const outputType = (formData.get('outputType') as FormatType) || 'key-points';
+    const wordCount = parseInt(formData.get('wordCount') as string) || 100;
 
     if (!collectionName || !collectionName.trim()) {
       return NextResponse.json({ error: 'Collection name is required' }, { status: 400 });
@@ -673,8 +764,9 @@ export async function POST(request: NextRequest) {
       : combinedText;
     
     console.log(`📝 Generating AI notes from ${textToProcess.length} characters of text (${combinedText.length} total available)...`);
+    console.log(`🎨 Output format: ${outputType}, Word count: ${wordCount}`);
     
-    const aiNotes = await generateAINotes(textToProcess);
+    const aiNotes = await generateAINotes(textToProcess, outputType, wordCount);
     
     if (!aiNotes || aiNotes.trim().length === 0) {
       console.error('❌ AI notes generation returned empty result');
