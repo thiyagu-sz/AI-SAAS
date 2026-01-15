@@ -19,7 +19,7 @@ export async function GET() {
       },
       body: JSON.stringify({
         // Try multiple models to see which one works
-        model: 'meta-llama/llama-3.1-8b-instruct:free', // Free LLaMA model
+        model: 'google/gemini-2.0-flash-exp:free', // Free Gemini model
         messages: [
           {
             role: 'user',
