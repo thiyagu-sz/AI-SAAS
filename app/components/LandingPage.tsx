@@ -20,9 +20,9 @@ export default function LandingPage() {
         <div className="px-4 md:px-10 py-3 flex items-center justify-between max-w-7xl mx-auto">
           <Link href="/" className="flex items-center group cursor-pointer">
             <img 
-              src="/logo.png" 
+              src="/applogo.png" 
               alt="QuickNotes Logo" 
-              className="h-8 w-auto md:h-10 object-contain"
+              className="h-10 sm:h-12 md:h-14 w-auto object-contain"
             />
           </Link>
           <div className="hidden md:flex items-center gap-8">
@@ -286,7 +286,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-12">
             <div className="col-span-2 lg:col-span-2 flex flex-col gap-4">
               <div className="flex items-center gap-2 text-text-main">
-                <img src="/logo.png" alt="Logo" className="h-6 w-auto object-contain" />
+                <img src="/applogo.png" alt="Logo" className="h-8 sm:h-10 md:h-12 w-auto object-contain" />
                 <h2 className="text-lg font-bold">QuickNotes</h2>
               </div>
               <p className="text-text-muted text-sm max-w-xs">

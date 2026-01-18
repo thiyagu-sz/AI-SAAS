@@ -48,6 +48,9 @@ function ChatContent() {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [viewportHeight, setViewportHeight] = useState('100dvh');
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
+  const [chatHistory, setChatHistory] = useState<Array<{ id: string; title: string; created_at: string }>>([]);
+  const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
+  const [expandedHistoryMessages, setExpandedHistoryMessages] = useState<Message[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -120,6 +123,27 @@ function ChatContent() {
     return userId ? `ai_chat_draft_${userId}` : 'ai_chat_draft';
   }, []);
 
+  // Load chat history list
+  const loadChatHistory = useCallback(async () => {
+    try {
+      const supabase = getSupabaseClient();
+      const { data: { session } } = await supabase.auth.getSession();
+
+      const response = await fetch('/api/chat/history?limit=10', {
+        headers: {
+          ...(session?.access_token && { 'Authorization': `Bearer ${session.access_token}` }),
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setChatHistory(data.conversations || []);
+      }
+    } catch (error) {
+      console.error('Error loading chat history:', error);
+    }
+  }, []);
+
   // Load conversation from API
   const loadConversation = useCallback(async (conversationId: string) => {
     try {
@@ -158,14 +182,6 @@ function ChatContent() {
       if (conversationIdFromUrl !== currentConversationId) {
         loadConversation(conversationIdFromUrl);
         setCurrentConversationId(conversationIdFromUrl);
-        setSaveChat(true);
-      }
-    } else {
-      // If we're on /chat without an ID, and we were previously on a conversation,
-      // it means the user clicked "New Chat" or navigated back to base /chat.
-      if (currentConversationId) {
-        setMessages([]);
-        setCurrentConversationId(null);
         setSaveChat(true);
       }
     }
@@ -270,13 +286,28 @@ function ChatContent() {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
-    // Show options panel when user types (if input has content)
     if (input.length > 0 && !showFormatOptions) {
       setShowFormatOptions(true);
     }
   }, [input, showFormatOptions]);
 
-  // Show options panel on focus or paste
+  useEffect(() => {
+    if (user?.id) {
+      loadChatHistory();
+    }
+  }, [user?.id, loadChatHistory]);
+
+  useEffect(() => {
+    const handleChatSaved = () => {
+      setTimeout(() => {
+        loadChatHistory();
+      }, 500);
+    };
+
+    window.addEventListener('chatSaved', handleChatSaved);
+    return () => window.removeEventListener('chatSaved', handleChatSaved);
+  }, [loadChatHistory]);
+
   const handleInputFocus = () => {
     setShowFormatOptions(true);
     // Smooth scroll to bottom on focus to ensure input is visible above keyboard
@@ -300,6 +331,65 @@ function ChatContent() {
   const showToastMessage = (message: string) => {
     setShowToast({ show: true, message });
     setTimeout(() => setShowToast({ show: false, message: '' }), 3000);
+  };
+
+  const isValidContent = (text: string): boolean => {
+    const words = text.toLowerCase().split(/\s+/);
+    const hasRepeatingChars = /(.)\1{4,}/.test(text);
+    const hasVowels = /[aeiou]/i.test(text);
+    const avgWordLength = words.reduce((sum, word) => sum + word.length, 0) / words.length;
+    const commonWords = words.filter(w => /^[a-z]{3,}$/i.test(w)).length;
+    
+    return !hasRepeatingChars && hasVowels && avgWordLength < 20 && commonWords > 0;
+  };
+
+  const showAboutMessage = () => {
+    const aboutMessage: Message = {
+      id: Date.now().toString(),
+      role: 'assistant',
+      content: `# 📚 Welcome to QuickNotes!
+
+## What is QuickNotes?
+QuickNotes is your personal study assistant that transforms any content into organized, formatted study notes in seconds.
+
+## How to Use:
+
+### Step 1: Paste Your Content
+- Copy and paste your lecture notes, articles, research papers, or any study material into the text field below
+- You can paste from websites, PDFs, books, or any text source
+
+### Step 2: Choose Your Format
+- **Key Points**: Essential information organized by topic
+- **Main Concepts**: Detailed explanations of core concepts
+- **Exam Points**: Content formatted for exam preparation
+- **Short Notes**: Concise, scannable notes
+- **Speech Notes**: Content organized for verbal presentation
+- **Presentation Notes**: Formatted for slide/presentation structure
+- **Summary**: Comprehensive overview of all main points
+
+### Step 3: Set Word Count
+- Choose from 50, 100, or 200 words
+- Or enter a custom word count
+- Longer content = more detailed notes
+
+### Step 4: Export
+- Click **Export PDF** to download professional PDF document
+- Click **Export DOC** to download as Word document
+- Or copy the generated text directly
+
+## Tips:
+✅ Paste full paragraphs or entire documents
+✅ Longer content produces better formatted notes
+✅ Experiment with different formats
+✅ Adjust word count based on your needs
+✅ All your notes are automatically saved
+
+---
+
+**Ready to get started?** Paste your study material in the text field below!`,
+      timestamp: new Date(),
+    };
+    setMessages([aboutMessage]);
   };
 
   const generateFormatPrompt = (format: FormatType, wordCount: number, userInput: string): string => {
@@ -412,6 +502,14 @@ ${userInput}`,
     if (!input.trim() || isLoading) return;
 
     const userInput = input.trim();
+
+    if (!isValidContent(userInput)) {
+      setInput('');
+      setShowFormatOptions(false);
+      showAboutMessage();
+      return;
+    }
+
     let processedInput = userInput;
 
     // Apply format if format options are shown and user wants formatted output
@@ -638,6 +736,10 @@ ${userInput}`,
           console.log('Conversation created:', conversationId);
           // Clear the local draft now that conversation is persisted
           try { localStorage.removeItem(getStorageKey(user?.id)); } catch (e) { /* ignore */ }
+          // Ensure URL stays at /chat without id to keep user on same page
+          if (typeof window !== 'undefined' && window.location.search) {
+            window.history.replaceState({}, '', '/chat');
+          }
           // Dispatch event to refresh sidebar with a small delay
           setTimeout(() => {
             window.dispatchEvent(new CustomEvent('chatSaved'));
@@ -718,7 +820,73 @@ ${userInput}`,
     return null; // Fallback return
   };
 
+  const handleViewPreviousChat = useCallback(async (conversationId: string) => {
+    if (expandedHistoryId === conversationId) {
+      setExpandedHistoryId(null);
+      setExpandedHistoryMessages([]);
+    } else {
+      setExpandedHistoryId(conversationId);
+      try {
+        const supabase = getSupabaseClient();
+        const { data: { session } } = await supabase.auth.getSession();
 
+        const response = await fetch(`/api/chat/load?id=${conversationId}`, {
+          headers: {
+            ...(session?.access_token && { 'Authorization': `Bearer ${session.access_token}` }),
+          },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const loadedMessages: Message[] = data.messages.map((msg: any) => ({
+            id: msg.id,
+            role: msg.role,
+            content: sanitizeContent(msg.content),
+            sources: msg.sources,
+            timestamp: new Date(msg.created_at),
+          }));
+          setExpandedHistoryMessages(loadedMessages);
+        }
+      } catch (error) {
+        console.error('Error loading conversation:', error);
+      }
+    }
+  }, [expandedHistoryId]);
+
+  const downloadFile = (blob: Blob, filename: string) => {
+    try {
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.download = filename;
+        
+        document.body.appendChild(link);
+        link.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }));
+        
+        setTimeout(() => {
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+        }, 100);
+      } else {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      throw error;
+    }
+  };
 
   const handleExport = useCallback(async (type: 'pdf' | 'doc', messageContent: string) => {
     if (!user || !messageContent) {
@@ -734,9 +902,7 @@ ${userInput}`,
       const cleanTitle = title.replace(/[^a-z0-9]/gi, '_');
 
       if (type === 'pdf') {
-        // Generate document in PDF format
         const htmlDocument = generateProfessionalHTML(messageContent, title);
-        
         showToastMessage('Generating PDF...');
         
         try {
@@ -755,55 +921,38 @@ ${userInput}`,
             throw new Error(`Document generation failed: ${response.statusText}`);
           }
 
-          // Download the document
           const blob = await response.blob();
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${cleanTitle}.pdf`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
+          if (blob.size === 0) {
+            throw new Error('Generated PDF is empty');
+          }
           
+          downloadFile(blob, `${cleanTitle}.pdf`);
           showToastMessage('PDF downloaded successfully!');
         } catch (pdfError) {
-          console.error('Document export error:', pdfError);
-          showToastMessage('Trying alternative export...');
-          // Fallback: Download as markdown
+          console.error('PDF export error:', pdfError);
+          showToastMessage('Trying text file export...');
+          
           try {
-            const markdownBlob = new Blob([messageContent], { type: 'text/markdown' });
-            const url = URL.createObjectURL(markdownBlob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${cleanTitle}.md`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            showToastMessage('Downloaded as Markdown file');
+            const textBlob = new Blob([messageContent], { type: 'text/plain; charset=utf-8' });
+            downloadFile(textBlob, `${cleanTitle}.txt`);
+            showToastMessage('Downloaded as text file');
           } catch (fallbackError) {
             console.error('Fallback export error:', fallbackError);
-            showToastMessage('Could not export. Try copy-paste instead.');
+            showToastMessage('Could not export. Please copy text manually.');
           }
         }
       } else if (type === 'doc') {
-        // Simple DOC export
-        const cleanContent = messageContent.replace(/[*#\[\]]/g, ''); 
-        const blob = new Blob([cleanContent], { type: 'application/msword' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${cleanTitle}.doc`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        showToastMessage('Document downloaded successfully');
+        try {
+          const cleanContent = messageContent.replace(/[*#\[\]]/g, '');
+          const blob = new Blob([cleanContent], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+          downloadFile(blob, `${cleanTitle}.docx`);
+          showToastMessage('Document downloaded successfully');
+        } catch (docError) {
+          console.error('DOC export error:', docError);
+          showToastMessage('Could not export as document. Please try PDF instead.');
+        }
       }
 
-      // Save to DB (non-blocking)
       try {
         const supabase = getSupabaseClient();
         const { data: { session } } = await supabase.auth.getSession();
@@ -821,7 +970,7 @@ ${userInput}`,
           }),
         });
       } catch (apiError) {
-        console.error('Export API error (background save):', apiError);
+        console.error('Export API error:', apiError);
       }
 
     } catch (error) {
@@ -831,7 +980,7 @@ ${userInput}`,
     } finally {
       setIsExporting(false);
     }
-  }, [user, messages, currentConversationId, isExporting, router]);
+  }, [user, messages, currentConversationId, isExporting]);
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -860,32 +1009,48 @@ ${userInput}`,
   }
 
   return (
-    <div className="flex bg-gray-50 overflow-hidden fixed inset-0" style={{ height: viewportHeight }}>
+    <div className="flex bg-gray-50 overflow-hidden fixed inset-0 w-screen h-screen" style={{ height: viewportHeight }}>
       <Sidebar user={user} />
 
-      <div className="flex-1 flex flex-col overflow-hidden relative">
+      <div className="flex-1 flex flex-col overflow-hidden relative w-full">
         {/* Top Navbar - Match Dashboard */}
-        <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">AI Assistant</h1>
-            <div className="flex items-center gap-2 sm:gap-4">
-              <div className="relative hidden md:block">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <header className="bg-white border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">AI Assistant</h1>
+              {messages.length > 0 && (
+                <button
+                  onClick={() => {
+                    setMessages([]);
+                    setInput('');
+                    setCurrentConversationId(null);
+                    setShowFormatOptions(false);
+                  }}
+                  className="px-2 py-1 text-xs sm:text-sm bg-blue-50 text-blue-700 hover:bg-blue-100 rounded transition-colors font-medium whitespace-nowrap hidden sm:inline-block"
+                  title="Start a new chat"
+                >
+                  + New Chat
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-1 sm:gap-3 flex-shrink-0">
+              <div className="relative hidden lg:block">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Search..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none w-64 text-sm"
+                  className="pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
                 />
               </div>
               <button
                 onClick={() => setShowFeedbackModal(true)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 sm:p-2.5 hover:bg-gray-100 rounded-lg transition-colors touch-target"
                 title="Send feedback"
               >
-                <MessageSquare className="w-5 h-5 text-gray-600" />
+                <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
               </button>
-              <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-                <Bell className="w-5 h-5 text-gray-600" />
+              <button className="p-2 sm:p-2.5 hover:bg-gray-100 rounded-lg transition-colors touch-target">
+                <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
               </button>
             </div>
           </div>
@@ -893,38 +1058,37 @@ ${userInput}`,
 
         {/* Messages Area */}
         <main className="flex-1 overflow-y-auto bg-white scroll-smooth" ref={scrollAreaRef}>
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 pb-20">
+          <div className="max-w-4xl mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 pb-24 sm:pb-28">
             {messages.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <MessageSquare className="w-8 h-8 text-blue-600" />
+              <div className="text-center py-8 sm:py-12 px-3">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                  <MessageSquare className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
                 </div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-3">Welcome to QuickNotes! 📚</h2>
-                <p className="text-gray-600 text-sm max-w-md mx-auto mb-4">
-                  Paste your study content (lecture notes, articles, research papers, etc.) into the text field below, then select your desired output format.
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2 sm:mb-3">Welcome to QuickNotes! 📚</h2>
+                <p className="text-gray-600 text-xs sm:text-sm max-w-sm mx-auto mb-3 sm:mb-4">
+                  Paste your study content into the text field below, then select your desired output format.
                 </p>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto text-left">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 max-w-sm mx-auto text-left">
                   <p className="text-xs font-semibold text-blue-900 mb-2">✨ How to use:</p>
                   <ul className="text-xs text-blue-800 space-y-1">
                     <li>📋 Paste your content in the chat below</li>
                     <li>🎯 Select format: Key Points, Summary, Exam Notes, etc.</li>
                     <li>📊 Set word count for your output</li>
-                    <li>💾 Export as PDF or download as Markdown</li>
+                    <li>💾 Export as PDF or download</li>
                   </ul>
                 </div>
               </div>
             ) : (
               <>
                 {messages.map((message, index) => {
-                  // Find the last assistant message index
                   const lastAssistantIndex = messages.map((m, i) => ({ role: m.role, index: i }))
                     .filter(({ role }) => role === 'assistant')
                     .pop()?.index ?? -1;
                   const isLastAssistantMessage = message.role === 'assistant' && index === lastAssistantIndex;
 
                   return (
-                    <div key={message.id} className={`flex mb-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`flex gap-2 sm:gap-3 max-w-[90%] sm:max-w-[85%] md:max-w-[75%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <div key={message.id} className={`flex mb-3 sm:mb-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`flex gap-1.5 sm:gap-3 max-w-[95%] sm:max-w-[90%] md:max-w-[80%] lg:max-w-[70%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                         <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                           message.role === 'user' 
                             ? 'bg-blue-600 text-white' 
@@ -1056,40 +1220,41 @@ ${userInput}`,
                 <div ref={messagesEndRef} />
               </>
             )}
+
           </div>
         </main>
 
         {/* Format Options Panel */}
         {showFormatOptions && (
-          <div className="bg-white border-t border-gray-200 p-3 sm:p-4 max-h-[40vh] overflow-y-auto">
-            <div className="max-w-3xl mx-auto px-2 sm:px-6">
+          <div className="bg-white border-t border-gray-200 p-3 sm:p-4 max-h-[45vh] sm:max-h-[40vh] overflow-y-auto">
+            <div className="max-w-4xl mx-auto px-1 sm:px-4 lg:px-6">
               <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <h3 className="text-xs sm:text-sm font-semibold text-gray-900">How do you want the output?</h3>
                 <button
                   onClick={() => setShowFormatOptions(false)}
-                  className="p-1 hover:bg-gray-100 rounded"
+                  className="p-1 hover:bg-gray-100 rounded touch-target"
                   aria-label="Close options"
                 >
                   <X className="w-4 h-4 text-gray-500" />
                 </button>
               </div>
-              <div className="flex flex-wrap gap-2 mb-3 sm:mb-4 overflow-x-auto pb-2 -mx-2 px-2 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4">
+              <div className="flex flex-wrap gap-2 mb-3 sm:mb-4 overflow-x-auto pb-2">
                 {formatOptions.map((option) => (
                   <button
                     key={option.value}
                     onClick={() => setSelectedFormat(option.value)}
-                    className={`px-3 py-2 text-xs sm:text-sm rounded-lg border transition-colors whitespace-nowrap flex-shrink-0 ${
+                    className={`px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg border transition-colors whitespace-nowrap flex-shrink-0 touch-target ${
                       selectedFormat === option.value
                         ? 'bg-blue-50 border-blue-500 text-blue-700 font-medium'
-                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                        : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 active:bg-gray-100'
                     }`}
                   >
                     {option.label}
                   </button>
                 ))}
               </div>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-                <label className="text-xs sm:text-sm text-gray-700 whitespace-nowrap">Word count:</label>
+              <div className="flex flex-col gap-2 sm:gap-4">
+                <label className="text-xs sm:text-sm text-gray-700 font-medium">Word count:</label>
                 <div className="flex flex-wrap gap-2">
                   {[50, 100, 200].map((count) => (
                     <button
@@ -1098,10 +1263,10 @@ ${userInput}`,
                         setWordCount(count);
                         setCustomWordCount('');
                       }}
-                      className={`px-3 py-1.5 text-xs sm:text-sm rounded-lg border transition-colors ${
+                      className={`px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg border transition-colors touch-target ${
                         wordCount === count && !customWordCount
                           ? 'bg-blue-50 border-blue-500 text-blue-700 font-medium'
-                          : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                          : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 active:bg-gray-100'
                       }`}
                     >
                       {count}
@@ -1118,7 +1283,7 @@ ${userInput}`,
                         setWordCount(parseInt(val) || 100);
                       }
                     }}
-                    className="w-16 sm:w-20 px-2 sm:px-3 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                    className="w-18 sm:w-20 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
                   />
                 </div>
               </div>
@@ -1127,18 +1292,18 @@ ${userInput}`,
         )}
 
         {/* Input Area */}
-        <footer className="bg-white border-t border-gray-200 z-20 flex-shrink-0 pb-[env(safe-area-inset-bottom)]">
-          <div className="max-w-3xl mx-auto px-3 sm:px-6 py-2 sm:py-3">
+        <footer className="bg-white border-t border-gray-200 z-20 flex-shrink-0 pb-[max(env(safe-area-inset-bottom),8px)]">
+          <div className="max-w-4xl mx-auto px-2 sm:px-4 lg:px-6 py-2 sm:py-3">
             {/* Save Chat Toggle - Hidden on small mobile when keyboard is open to save space */}
             <div className={`mb-2 flex items-center justify-between flex-wrap gap-2 ${isKeyboardOpen ? 'hidden sm:flex' : 'flex'}`}>
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-2 cursor-pointer touch-target">
                 <input
                   type="checkbox"
                   checked={saveChat}
                   onChange={(e) => setSaveChat(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
                 />
-                <span className="text-xs text-gray-700">Save chat</span>
+                <span className="text-xs sm:text-sm text-gray-700">Save chat</span>
               </label>
               {saveChat && (
                 <div className="flex items-center gap-1 text-xs text-blue-600">
@@ -1148,32 +1313,31 @@ ${userInput}`,
               )}
             </div>
 
-            <div className="flex items-end gap-2 sm:gap-3">
-              <div className="flex-1 border border-gray-300 rounded-2xl focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500 bg-white min-w-0">
+            <div className="flex items-end gap-1.5 sm:gap-3">
+              <div className="flex-1 border border-gray-300 rounded-2xl focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500 bg-white min-w-0 transition-all">
                 <textarea
                   ref={textareaRef}
                   value={input}
                   onChange={(e) => {
                     setInput(e.target.value);
-                    // Auto-resize textarea
                     e.target.style.height = 'auto';
                     e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
                   }}
                   onKeyDown={handleKeyPress}
                   onFocus={handleInputFocus}
                   onPaste={handleInputPaste}
-                  placeholder="Message AI Assistant..."
-                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border-none rounded-2xl focus:ring-0 focus:outline-none resize-none text-sm bg-transparent max-h-[120px]"
+                  placeholder="Paste your content..."
+                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-none rounded-2xl focus:ring-0 focus:outline-none resize-none text-sm sm:text-base bg-transparent max-h-[120px] leading-relaxed"
                   rows={1}
                 />
               </div>
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
-                className="flex items-center justify-center bg-blue-600 text-white w-10 h-10 sm:w-11 sm:h-11 rounded-full hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 shadow-sm"
+                className="flex items-center justify-center bg-blue-600 text-white w-10 h-10 sm:w-11 sm:h-11 rounded-full hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 shadow-sm hover:shadow-md touch-target"
               >
                 {isLoading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
                 ) : (
                   <Send className="w-4 h-4 sm:w-5 sm:h-5" />
                 )}

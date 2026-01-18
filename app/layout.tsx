@@ -14,15 +14,15 @@ export const metadata: Metadata = {
   title: "QuickNotes - AI Study Assistant",
   description: "AI-powered study notes and summaries. Transform your documents into organized study materials.",
   icons: {
-    icon: "/quicknotes-logo.svg",
-    apple: "/quicknotes-logo.svg",
+    icon: "/dominlogo.png",
+    apple: "/dominlogo.png",
   },
   openGraph: {
     title: "QuickNotes - AI Study Assistant",
     description: "Transform your documents into organized study materials with AI.",
     images: [
       {
-        url: "/quicknotes-logo.svg",
+        url: "/dominlogo.png",
         width: 256,
         height: 256,
         alt: "QuickNotes Logo",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     card: "summary",
     title: "QuickNotes",
     description: "AI-powered study notes and summaries",
-    images: ["/quicknotes-logo.svg"],
+    images: ["/dominlogo.png"],
   },
 };
 
@@ -45,7 +45,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes" />
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=5, viewport-fit=cover, user-scalable=yes" />
+        <meta name="theme-color" content="#ffffff" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="QuickNotes" />
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"

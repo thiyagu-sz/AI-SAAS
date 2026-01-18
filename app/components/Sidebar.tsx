@@ -276,9 +276,9 @@ export default function Sidebar({ user }: SidebarProps) {
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
           <Link href="/" className="flex items-center">
             <img 
-              src="/logo.png" 
+              src="/applogo.png" 
               alt="QuickNotes Logo" 
-              className="h-8 w-auto object-contain"
+              className="h-10 sm:h-12 md:h-14 w-auto object-contain"
             />
           </Link>
           <button
