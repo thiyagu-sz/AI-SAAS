@@ -334,20 +334,26 @@ function ChatContent() {
   };
 
   const isValidContent = (text: string): boolean => {
-    const words = text.toLowerCase().split(/\s+/);
-    const hasRepeatingChars = /(.)\1{4,}/.test(text);
+    if (!text || text.trim().length < 5) return false;
+    
+    const words = text.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+    if (words.length < 1) return false;
+    
+    const hasRepeatingChars = /(.)\1{5,}/.test(text);
     const hasVowels = /[aeiou]/i.test(text);
     const avgWordLength = words.reduce((sum, word) => sum + word.length, 0) / words.length;
-    const commonWords = words.filter(w => /^[a-z]{3,}$/i.test(w)).length;
+    const hasAlphabeticChars = /[a-z]/i.test(text);
     
-    return !hasRepeatingChars && hasVowels && avgWordLength < 20 && commonWords > 0;
+    const isGibberish = hasRepeatingChars || !hasVowels || (avgWordLength > 15 && !hasAlphabeticChars);
+    
+    return !isGibberish && hasAlphabeticChars;
   };
 
   const showAboutMessage = () => {
     const aboutMessage: Message = {
       id: Date.now().toString(),
       role: 'assistant',
-      content: `# 📚 Welcome to QuickNotes!
+      content: `#  Welcome to QuickNotes!
 
 ## What is QuickNotes?
 QuickNotes is your personal study assistant that transforms any content into organized, formatted study notes in seconds.
@@ -499,16 +505,22 @@ ${userInput}`,
   };
 
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading) {
+      console.log('handleSend blocked:', { inputEmpty: !input.trim(), isLoading });
+      return;
+    }
 
     const userInput = input.trim();
+    console.log('handleSend called with input:', userInput.substring(0, 50));
 
     if (!isValidContent(userInput)) {
+      console.log('Content validation failed, showing about message');
       setInput('');
       setShowFormatOptions(false);
       showAboutMessage();
       return;
     }
+    console.log('Content validation passed');
 
     let processedInput = userInput;
 
@@ -530,20 +542,26 @@ ${userInput}`,
     setIsLoading(true);
 
     try {
+      console.log('🚀 Starting handleSend...');
       const supabase = getSupabaseClient();
       const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser();
       
+      console.log('Auth check:', { hasUser: !!currentUser, error: userError?.message });
       if (userError || !currentUser) {
         console.error('Auth error:', userError);
         throw new Error('Please log in to use the chat feature');
       }
+
+      console.log('✅ User authenticated:', currentUser.id);
 
       // Save user message immediately if saveChat is ON
       // Store the returned conversation ID to use for assistant message
       let savedConversationId: string | null = null;
       if (saveChat && currentUser) {
         try {
+          console.log('💾 Saving user message...');
           savedConversationId = await saveMessageToDatabase(userMessage, currentUser.id);
+          console.log('✅ User message saved, conversationId:', savedConversationId);
         } catch (saveError) {
           console.error('Error saving user message:', saveError);
           // Continue with chat even if save fails
@@ -551,7 +569,9 @@ ${userInput}`,
       }
 
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('Session token exists:', !!session?.access_token);
 
+      console.log('📡 Calling /api/chat with input:', processedInput.substring(0, 50));
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -564,9 +584,11 @@ ${userInput}`,
         }),
       });
 
+      console.log('📥 API Response:', response.status, response.statusText);
+
       if (!response.ok) {
         const errorData = await response.text();
-        console.error('API error:', response.status, errorData);
+        console.error('❌ API error:', response.status, errorData);
         let errorMessage = `API error (${response.status})`;
         try {
           const errorJson = JSON.parse(errorData);
@@ -576,28 +598,38 @@ ${userInput}`,
         }
         throw new Error(errorMessage);
       }
+      console.log('✅ API response OK, starting to stream...');
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
-      let assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: '',
-        timestamp: new Date(),
-      };
+      const messageId = (Date.now() + 1).toString();
+      let assistantContent = '';
 
-      setMessages((prev) => [...prev, assistantMessage]);
+      setMessages((prev) => [...prev, {
+        id: messageId,
+        role: 'assistant',
+        content: assistantContent,
+        timestamp: new Date(),
+      }]);
 
       if (reader) {
+        console.log('🔄 Starting to read stream...');
         let streamEnded = false;
+        let chunkCount = 0;
         while (true) {
           const { done, value } = await reader.read();
           if (done) {
-            if (!assistantMessage.content) {
-              assistantMessage.content = 'No response received from the AI. Please check your API key and try again.';
+            console.log('✅ Stream ended. Total chunks:', chunkCount, 'Content length:', assistantContent.length);
+            if (!assistantContent) {
+              assistantContent = 'No response received from the AI. Please check your API key and try again.';
               setMessages((prev) => {
                 const updated = [...prev];
-                updated[updated.length - 1] = { ...assistantMessage };
+                updated[updated.length - 1] = { 
+                  id: messageId,
+                  role: 'assistant',
+                  content: assistantContent,
+                  timestamp: new Date(),
+                };
                 return updated;
               });
             } else {
@@ -605,7 +637,12 @@ ${userInput}`,
               // Pass the conversation ID from when we saved the user message
               if (saveChat && currentUser) {
                 try {
-                  await saveMessageToDatabase(assistantMessage, currentUser.id, savedConversationId);
+                  await saveMessageToDatabase({
+                    id: messageId,
+                    role: 'assistant',
+                    content: assistantContent,
+                    timestamp: new Date(),
+                  }, currentUser.id, savedConversationId);
                 } catch (saveError) {
                   console.error('Error saving assistant message:', saveError);
                   showToastMessage('Chat saved, but failed to save last message. Please try again.');
@@ -615,7 +652,9 @@ ${userInput}`,
             break;
           }
 
+          chunkCount++;
           const chunk = decoder.decode(value);
+          console.log(`📦 Chunk ${chunkCount}:`, chunk.substring(0, 100));
           const lines = chunk.split('\n');
 
           for (const line of lines) {
@@ -626,33 +665,49 @@ ${userInput}`,
               try {
                 const parsed = JSON.parse(data);
                 if (parsed.error) {
-                  assistantMessage.content = `Error: ${parsed.error}`;
+                  console.error('❌ API Error in stream:', parsed.error);
+                  assistantContent = `Error: ${parsed.error}`;
                   setMessages((prev) => {
                     const updated = [...prev];
-                    updated[updated.length - 1] = { ...assistantMessage };
+                    updated[updated.length - 1] = { 
+                      id: messageId,
+                      role: 'assistant',
+                      content: assistantContent,
+                      timestamp: new Date(),
+                    };
                     return updated;
                   });
                   streamEnded = true;
                   break;
                 }
                 if (parsed.content) {
-                  assistantMessage.content += sanitizeContent(parsed.content);
+                  assistantContent += sanitizeContent(parsed.content);
                   setMessages((prev) => {
                     const updated = [...prev];
-                    updated[updated.length - 1] = { ...assistantMessage };
+                    updated[updated.length - 1] = { 
+                      id: messageId,
+                      role: 'assistant',
+                      content: assistantContent,
+                      timestamp: new Date(),
+                    };
                     return updated;
                   });
                 }
                 if (parsed.sources) {
-                  assistantMessage.sources = parsed.sources;
                   setMessages((prev) => {
                     const updated = [...prev];
-                    updated[updated.length - 1] = { ...assistantMessage };
+                    updated[updated.length - 1] = { 
+                      id: messageId,
+                      role: 'assistant',
+                      content: assistantContent,
+                      sources: parsed.sources,
+                      timestamp: new Date(),
+                    };
                     return updated;
                   });
                 }
-              } catch {
-                // Skip invalid JSON
+              } catch (parseErr) {
+                console.warn('Failed to parse JSON:', data.substring(0, 50), parseErr);
               }
             }
           }
@@ -661,7 +716,7 @@ ${userInput}`,
         }
       }
     } catch (error) {
-      console.error('Chat error:', error);
+      console.error('❌ Chat error:', error);
       const errorDetails = error instanceof Error ? error.message : 'Unknown error occurred';
       const errorMessage: Message = {
         id: (Date.now() + 2).toString(),
@@ -672,6 +727,7 @@ ${userInput}`,
       setMessages((prev) => [...prev, errorMessage]);
       showToastMessage(`Error: ${errorDetails}`);
     } finally {
+      console.log('🏁 handleSend finished, setting isLoading to false');
       setIsLoading(false);
     }
   };

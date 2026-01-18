@@ -41,6 +41,27 @@ export class ProfessionalReportGenerator {
   }
 
   /**
+   * Strip founder/developer/creator information
+   */
+  static stripFounderInfo(content: string): string {
+    return content
+      .replace(/founder\s*[&:].*?(?=\n|$)/gi, '') // Remove founder lines
+      .replace(/developer\s*[&:].*?(?=\n|$)/gi, '') // Remove developer lines
+      .replace(/creator\s*[&:].*?(?=\n|$)/gi, '') // Remove creator lines
+      .replace(/created\s+by.*?(?=\n|$)/gi, '') // Remove created by
+      .replace(/built\s+by.*?(?=\n|$)/gi, '') // Remove built by
+      .replace(/owned\s+by.*?(?=\n|$)/gi, '') // Remove owned by
+      .replace(/developed\s+by.*?(?=\n|$)/gi, '') // Remove developed by
+      .replace(/portfolio\s*[&:].*?(?=\n|$)/gi, '') // Remove portfolio references
+      .replace(/thiyagu[^\n]*/gi, '') // Remove any Thiyagu mentions
+      .replace(/master'?s?\s+student[^\n]*/gi, '') // Remove student/degree info
+      .replace(/vit\s+vellore[^\n]*/gi, '') // Remove university references
+      .replace(/freelancer[^\n]*/gi, '') // Remove freelancer mentions
+      .replace(/ai\s+&\s+ml[^\n]*/gi, '') // Remove field of study
+      .trim();
+  }
+
+  /**
    * Strip debug text and placeholders
    */
   static stripDebugText(content: string): string {
@@ -94,6 +115,7 @@ export class ProfessionalReportGenerator {
     if (/\[.*\]\(.*\)/g.test(content)) issues.push('Markdown links');
     if (/href\s*=|src\s*=/i.test(content)) issues.push('HTML attributes');
     if (/TODO:|FIXME:|DEBUG:|NOTE:/i.test(content)) issues.push('Debug markers');
+    if (/founder|developer|creator|thiyagu|portfolio/i.test(content)) issues.push('Founder/Developer information');
     
     return issues;
   }
@@ -111,6 +133,13 @@ export class ProfessionalReportGenerator {
       // Remove email-like and domain patterns
       .replace(/[a-zA-Z0-9.-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '')
       .replace(/\b(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}\b/gi, '')
+      
+      // Remove founder/developer/creator information
+      .replace(/founder\s*[&:].*?(?=\n|$)/gi, '')
+      .replace(/developer\s*[&:].*?(?=\n|$)/gi, '')
+      .replace(/creator\s*[&:].*?(?=\n|$)/gi, '')
+      .replace(/thiyagu[^\n]*/gi, '')
+      .replace(/portfolio[^\n]*/gi, '')
       
       // Remove environment/deployment info
       .replace(/deployment[\s:]+[^\n]*/gi, '')
@@ -185,6 +214,9 @@ export class ProfessionalReportGenerator {
       content = this.stripDebugText(content);
     }
 
+    // Always strip founder/developer/creator information
+    content = this.stripFounderInfo(content);
+
     // Convert references to plain text
     content = this.convertReferencesToText(content);
 
@@ -231,6 +263,10 @@ export class ProfessionalReportGenerator {
 
     if (/TODO:|FIXME:|DEBUG:/i.test(content)) {
       issues.push('Contains debug markers');
+    }
+
+    if (/founder|developer|creator|thiyagu|portfolio/i.test(content)) {
+      issues.push('Contains founder or developer information');
     }
 
     return {
