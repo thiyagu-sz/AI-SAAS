@@ -95,6 +95,17 @@ CREATE TABLE IF NOT EXISTS feedback (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Chat exports table
+CREATE TABLE IF NOT EXISTS chat_exports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  conversation_id UUID REFERENCES chat_conversations(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  type TEXT NOT NULL CHECK (type IN ('pdf', 'doc')),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- =====================================================
 -- 2. CREATE INDEXES FOR PERFORMANCE
 -- =====================================================
@@ -108,6 +119,8 @@ CREATE INDEX IF NOT EXISTS idx_notes_user_id ON notes(user_id);
 CREATE INDEX IF NOT EXISTS idx_chat_conversations_user_id ON chat_conversations(user_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_user_id ON chat_messages(user_id);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation_id ON chat_messages(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_chat_exports_user_id ON chat_exports(user_id);
+CREATE INDEX IF NOT EXISTS idx_chat_exports_conversation_id ON chat_exports(conversation_id);
 
 -- =====================================================
 -- 3. ENABLE ROW LEVEL SECURITY (RLS)
@@ -121,6 +134,7 @@ ALTER TABLE notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE feedback ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_exports ENABLE ROW LEVEL SECURITY;
 
 -- =====================================================
 -- 4. DROP EXISTING POLICIES (to avoid conflicts)
@@ -168,6 +182,11 @@ DROP POLICY IF EXISTS "Users can delete own chat_messages" ON chat_messages;
 -- Feedback
 DROP POLICY IF EXISTS "Users can insert feedback" ON feedback;
 DROP POLICY IF EXISTS "Users can view own feedback" ON feedback;
+
+-- Chat exports
+DROP POLICY IF EXISTS "Users can view own chat_exports" ON chat_exports;
+DROP POLICY IF EXISTS "Users can insert own chat_exports" ON chat_exports;
+DROP POLICY IF EXISTS "Users can delete own chat_exports" ON chat_exports;
 
 -- =====================================================
 -- 5. CREATE RLS POLICIES
@@ -287,6 +306,19 @@ WITH CHECK (true);
 
 CREATE POLICY "Users can view own feedback"
 ON feedback FOR SELECT
+USING (auth.uid() = user_id);
+
+-- CHAT_EXPORTS POLICIES
+CREATE POLICY "Users can view own chat_exports"
+ON chat_exports FOR SELECT
+USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own chat_exports"
+ON chat_exports FOR INSERT
+WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own chat_exports"
+ON chat_exports FOR DELETE
 USING (auth.uid() = user_id);
 
 -- =====================================================

@@ -11,10 +11,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Convert HTML to plain text and create a simple text file instead
-    // This is a fallback approach that works reliably without heavy dependencies
-    
-    // Strip HTML tags
+    try {
+      const puppeteer = await import('puppeteer');
+      const browser = await puppeteer.default.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+      });
+
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        margin: { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' },
+        printBackground: true,
+      });
+
+      await browser.close();
+
+      return new NextResponse(Buffer.from(pdfBuffer), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="${filename || 'document.pdf'}"`,
+          'Content-Length': pdfBuffer.length.toString(),
+        },
+      });
+    } catch (puppeteerError) {
+      console.log('Puppeteer PDF generation failed, using text fallback:', puppeteerError);
+    }
+
     const textContent = html
       .replace(/<[^>]*>/g, '')
       .replace(/&nbsp;/g, ' ')
@@ -26,7 +51,6 @@ export async function POST(request: NextRequest) {
       .replace(/\n\n+/g, '\n\n')
       .trim();
 
-    // Create a simple text document as fallback
     const textBuffer = Buffer.from(textContent, 'utf-8');
 
     return new NextResponse(textBuffer, {

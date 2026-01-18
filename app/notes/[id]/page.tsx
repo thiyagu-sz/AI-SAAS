@@ -5,16 +5,15 @@ import { useRouter, useParams } from 'next/navigation';
 import { getSupabaseClient } from '@/app/lib/supabase';
 import Sidebar from '@/app/components/Sidebar';
 import FeedbackButton from '@/app/components/FeedbackButton';
+import StatusModal from '@/app/components/StatusModal';
 import {
   FileText,
-  Download,
   ArrowLeft,
   Loader2,
-  CheckCircle2,
-  X,
   FileDown,
 } from 'lucide-react';
 import Link from 'next/link';
+import { generateProfessionalHTML } from '@/app/lib/pdfGenerator';
 
 interface Collection {
   id: string;
@@ -49,6 +48,12 @@ export default function NotesViewerPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [exporting, setExporting] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
+  const [statusModal, setStatusModal] = useState({
+    show: false,
+    type: 'success' as 'success' | 'error' | 'warning' | 'info',
+    title: '',
+    message: '',
+  });
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -218,117 +223,50 @@ export default function NotesViewerPage() {
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
-  const handleExport = async () => {
-    if (!note) return;
 
-    setExporting(true);
-    const supabase = getSupabaseClient();
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-
-    if (!currentUser) {
-      setExporting(false);
-      router.push('/login');
-      return;
-    }
-
-    try {
-      // Insert export record
-      const { data: exportData, error: exportError } = await supabase
-        .from('exports')
-        .insert([
-          {
-            user_id: currentUser.id,
-            collection_id: collectionId,
-            note_id: note.id,
-            status: 'pending',
-            created_at: new Date().toISOString(),
-          },
-        ])
-        .select('id')
-        .single();
-
-      if (exportError) {
-        throw exportError;
-      }
-
-      const exportId = exportData.id;
-
-      // Polling function to check export status
-      const checkExportStatus = async (attempts: number = 0) => {
-        if (attempts > 20) {
-          console.log('Max attempts reached, stopping export status checks.');
-          return;
-        }
-
-        setTimeout(async () => {
-          try {
-            const { data: statusData, error: statusError } = await supabase
-              .from('exports')
-              .select('status, download_url')
-              .eq('id', exportId)
-              .single();
-
-            if (statusError) {
-              throw statusError;
-            }
-
-            if (statusData.status === 'completed') {
-              // Download URL should be available now
-              window.open(statusData.download_url, '_blank');
-              setExporting(false);
-            } else if (statusData.status === 'failed') {
-              console.error('Export failed');
-              setExporting(false);
-            } else {
-              // Not completed yet, continue polling
-              console.log(`Export status: ${statusData.status}. Checking again...`);
-              checkExportStatus(attempts + 1);
-            }
-          } catch (error) {
-            console.error('Error checking export status:', error);
-            setExporting(false);
-          }
-        }, 5000); // Check every 5 seconds
-      };
-
-      // Start checking export status
-      checkExportStatus();
-    } catch (error) {
-      console.error('Error during export:', error);
-      setExporting(false);
-    }
-  };
 
   const exportToPDF = async () => {
-    if (!note) return;
+    if (!note || !user) return;
 
     setExporting(true);
+    const title = collection?.name || 'Study Notes';
+    const cleanTitle = title.replace(/[^a-z0-9]/gi, '_');
+
     try {
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>${collection?.name || 'Study Notes'}</title>
-              <style>
-                body { font-family: Arial, sans-serif; padding: 40px; line-height: 1.6; }
-                h1 { color: #1a1a1a; }
-                pre { white-space: pre-wrap; }
-              </style>
-            </head>
-            <body>
-              <h1>${collection?.name || 'Study Notes'}</h1>
-              <pre>${note.content}</pre>
-            </body>
-          </html>
-        `);
-        printWindow.document.close();
-        printWindow.print();
+      const htmlDocument = generateProfessionalHTML(note.content, title);
+      
+      const response = await fetch('/api/chat/pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          html: htmlDocument,
+          filename: `${cleanTitle}.pdf`,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Document generation failed: ${response.statusText}`);
       }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${cleanTitle}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Export error:', error);
-      alert('Failed to export PDF. Please try again.');
+      setStatusModal({
+        show: true,
+        type: 'error',
+        title: 'Export Failed',
+        message: 'Failed to export PDF. Please try again.',
+      });
     } finally {
       setExporting(false);
     }
@@ -351,7 +289,12 @@ export default function NotesViewerPage() {
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Export error:', error);
-      alert('Failed to export DOC. Please try again.');
+      setStatusModal({
+        show: true,
+        type: 'error',
+        title: 'Export Failed',
+        message: 'Failed to export DOC. Please try again.',
+      });
     } finally {
       setExporting(false);
     }
@@ -439,7 +382,12 @@ export default function NotesViewerPage() {
                           if (!res.ok) {
                             const text = await res.text().catch(() => 'Failed');
                             console.error('Generate API error:', res.status, text);
-                            alert('Failed to generate notes. See console for details.');
+                            setStatusModal({
+                              show: true,
+                              type: 'error',
+                              title: 'Generation Failed',
+                              message: `Failed to generate notes: ${text}`,
+                            });
                           } else {
                             // Wait briefly then refresh data
                             await new Promise(r => setTimeout(r, 800));
@@ -447,7 +395,12 @@ export default function NotesViewerPage() {
                           }
                         } catch (e) {
                           console.error('Generate error:', e);
-                          alert('Failed to generate notes. See console for details.');
+                          setStatusModal({
+                            show: true,
+                            type: 'error',
+                            title: 'Generation Failed',
+                            message: 'Failed to generate notes. Please try again later.',
+                          });
                         } finally {
                           setLoading(false);
                         }
@@ -496,6 +449,15 @@ export default function NotesViewerPage() {
 
       {/* Floating Feedback Button */}
       <FeedbackButton userId={user?.id} userEmail={user?.email} />
+
+      {/* Status Modal */}
+      <StatusModal
+        show={statusModal.show}
+        type={statusModal.type}
+        title={statusModal.title}
+        message={statusModal.message}
+        onClose={() => setStatusModal(prev => ({ ...prev, show: false }))}
+      />
     </div>
   );
 }

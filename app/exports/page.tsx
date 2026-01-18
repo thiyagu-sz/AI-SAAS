@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getSupabaseClient } from '@/app/lib/supabase';
 import Sidebar from '@/app/components/Sidebar';
 import FeedbackButton from '@/app/components/FeedbackButton';
+import StatusModal from '@/app/components/StatusModal';
 import { 
   Download,
   FileText,
@@ -13,6 +14,7 @@ import {
   ArrowDown
 } from 'lucide-react';
 import Link from 'next/link';
+import { jsPDF } from 'jspdf';
 
 interface Export {
   id: string;
@@ -30,6 +32,12 @@ export default function ExportsPage() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [exports, setExports] = useState<Export[]>([]);
+  const [statusModal, setStatusModal] = useState({
+    show: false,
+    type: 'success' as 'success' | 'error' | 'warning' | 'info',
+    title: '',
+    message: '',
+  });
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -178,110 +186,82 @@ export default function ExportsPage() {
   const handleExport = async (exportItem: Export) => {
     try {
       if (!exportItem.content || !exportItem.content.trim()) {
-        alert('No content available for export');
+        setStatusModal({
+          show: true,
+          type: 'warning',
+          title: 'No Content',
+          message: 'No content available for export',
+        });
         return;
       }
 
       // Clean content (remove markdown bold markers, keep structure)
       const cleanContent = (exportItem.content || '').replace(/\*\*/g, '').trim();
 
-      if (exportItem.type === 'pdf') {
-        // PDF export using browser print - clean format
-        const printWindow = window.open('', '_blank');
-        if (printWindow) {
-          printWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-              <head>
-                <title>${exportItem.title}</title>
-                <style>
-                  @media print {
-                    body { margin: 0; padding: 0; }
-                  }
-                  body { 
-                    font-family: 'Segoe UI', Arial, sans-serif; 
-                    padding: 60px; 
-                    line-height: 1.8; 
-                    color: #1a1a1a;
-                    background: white;
-                    max-width: 800px;
-                    margin: 0 auto;
-                  }
-                  h1 { 
-                    color: #1a1a1a; 
-                    margin-bottom: 24px;
-                    margin-top: 0;
-                    font-size: 28px;
-                    font-weight: 600;
-                    border-bottom: 2px solid #e5e7eb;
-                    padding-bottom: 12px;
-                  }
-                  h2 {
-                    color: #1a1a1a;
-                    margin-top: 32px;
-                    margin-bottom: 16px;
-                    font-size: 22px;
-                    font-weight: 600;
-                  }
-                  h3 {
-                    color: #374151;
-                    margin-top: 24px;
-                    margin-bottom: 12px;
-                    font-size: 18px;
-                    font-weight: 600;
-                  }
-                  p {
-                    margin-bottom: 12px;
-                    line-height: 1.8;
-                  }
-                  ul, ol {
-                    margin-left: 24px;
-                    margin-bottom: 16px;
-                    padding-left: 0;
-                  }
-                  li {
-                    margin-bottom: 8px;
-                    line-height: 1.7;
-                  }
-                  pre { 
-                    white-space: pre-wrap; 
-                    font-family: inherit;
-                    line-height: 1.8;
-                  }
-                  strong {
-                    font-weight: 600;
-                    color: #1a1a1a;
-                  }
-                </style>
-              </head>
-              <body>
-                <h1>${exportItem.title}</h1>
-                <pre style="font-family: inherit; white-space: pre-wrap;">${cleanContent}</pre>
-              </body>
-            </html>
-          `);
-          printWindow.document.close();
-          setTimeout(() => printWindow.print(), 250);
+      // Create PDF directly
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      // Set font and styling
+      doc.setFont('helvetica');
+      
+      // Add title
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text(exportItem.title, 20, 20);
+      
+      // Add a line under title
+      doc.setLineWidth(0.5);
+      doc.line(20, 25, 190, 25);
+      
+      // Add content
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      
+      // Split content into lines that fit the page width
+      const pageWidth = 170; // 210mm - 20mm margins on each side
+      const lineHeight = 7;
+      const maxLinesPerPage = 38; // Approximate lines per page
+      
+      const lines = doc.splitTextToSize(cleanContent, pageWidth);
+      let yPosition = 35;
+      let currentPage = 1;
+      
+      for (let i = 0; i < lines.length; i++) {
+        if (yPosition > 280) { // Near bottom of page
+          doc.addPage();
+          currentPage++;
+          yPosition = 20;
         }
-      } else {
-        // DOC export - clean format
-        const blob = new Blob([cleanContent], { 
-          type: 'application/msword' 
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${exportItem.title.replace(/[^a-z0-9]/gi, '_')}.${exportItem.type}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        doc.text(lines[i], 20, yPosition);
+        yPosition += lineHeight;
       }
+      
+      // Add page numbers
+      const totalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Page ${i} of ${totalPages}`, 105, 290, { align: 'center' });
+      }
+      
+      // Save the PDF
+      const filename = `${exportItem.title.replace(/[^a-z0-9]/gi, '_')}.pdf`;
+      doc.save(filename);
     } catch (error) {
       console.error('Error exporting:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('Export error details:', errorMessage);
-      alert(`Failed to export: ${errorMessage}. Please try again.`);
+      setStatusModal({
+        show: true,
+        type: 'error',
+        title: 'Export Failed',
+        message: `Failed to export: ${errorMessage}. Please try again.`,
+      });
     }
   };
 
@@ -462,6 +442,15 @@ export default function ExportsPage() {
 
       {/* Floating Feedback Button */}
       <FeedbackButton userId={user?.id} userEmail={user?.email} />
+
+      {/* Status Modal */}
+      <StatusModal
+        show={statusModal.show}
+        type={statusModal.type}
+        title={statusModal.title}
+        message={statusModal.message}
+        onClose={() => setStatusModal(prev => ({ ...prev, show: false }))}
+      />
     </div>
   );
 }

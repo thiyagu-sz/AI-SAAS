@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { getSupabaseClient } from '@/app/lib/supabase';
 import Sidebar from '@/app/components/Sidebar';
 import FeedbackButton from '@/app/components/FeedbackButton';
+import StatusModal from '@/app/components/StatusModal';
 import { 
   Upload as UploadIcon, 
   FileText, 
@@ -42,13 +43,23 @@ export default function UploadPage() {
   const [recentUploads, setRecentUploads] = useState<RecentUpload[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [showCollectionModal, setShowCollectionModal] = useState(false);
-  const [showWorkInProgress, setShowWorkInProgress] = useState(false);
   const [collectionName, setCollectionName] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [outputFormat, setOutputFormat] = useState<FormatType>('key-points');
   const [wordCount, setWordCount] = useState(100);
   const [customWordCount, setCustomWordCount] = useState('');
+  const [statusModal, setStatusModal] = useState<{
+    show: boolean;
+    title: string;
+    message: string;
+    type: 'success' | 'error' | 'warning';
+  }>({
+    show: false,
+    title: '',
+    message: '',
+    type: 'success',
+  });
 
   const formatOptions: Array<{ value: FormatType; label: string }> = [
     { value: 'key-points', label: 'Key Points' },
@@ -198,7 +209,12 @@ export default function UploadPage() {
 
   const handleCollectionSubmit = async () => {
     if (!collectionName.trim()) {
-      alert('Please enter a collection name');
+      setStatusModal({
+        show: true,
+        title: 'Collection Name Required',
+        message: 'Please enter a name for your study collection to keep things organized.',
+        type: 'warning'
+      });
       return;
     }
 
@@ -266,7 +282,12 @@ export default function UploadPage() {
       // Check if notes were saved
       if (result.notesSaved === false) {
         console.warn('⚠️ Notes were generated but not saved:', result.error);
-        alert(`Upload complete, but notes could not be saved.\n\n${result.error || 'Please check if the notes table exists in Supabase.'}\n\nCheck the server console for details.`);
+        setStatusModal({
+          show: true,
+          title: 'Notes Not Saved',
+          message: `Upload complete, but notes could not be saved. ${result.error || 'Please check if the notes table exists in Supabase.'}`,
+          type: 'error'
+        });
       } else if (result.notesId) {
         console.log('✅ Notes saved successfully! ID:', result.notesId);
       }
@@ -298,7 +319,12 @@ export default function UploadPage() {
       setUploadingFiles((prev) =>
         prev.map((f) => ({ ...f, status: 'error' as const }))
       );
-      alert(error instanceof Error ? error.message : 'Upload failed. Please try again.');
+      setStatusModal({
+        show: true,
+        title: 'Upload Failed',
+        message: error instanceof Error ? error.message : 'Upload failed. Please try again.',
+        type: 'error'
+      });
     } finally {
       setIsUploading(false);
     }
@@ -333,20 +359,28 @@ export default function UploadPage() {
     });
 
     if (errors.length > 0) {
-      alert(errors.join('\n'));
+      setStatusModal({
+        show: true,
+        title: 'File Selection Issues',
+        message: errors.join('\n'),
+        type: 'warning'
+      });
     }
 
     if (validFiles.length === 0) return;
 
     // Check limits
     if (validFiles.length > 10) {
-      alert('Maximum 10 files allowed at once. Please select fewer files.');
+      setStatusModal({
+        show: true,
+        title: 'Too Many Files',
+        message: 'Maximum 10 files allowed at once. Please select fewer files.',
+        type: 'warning'
+      });
       return;
     }
 
-    // Store selected files and show work-in-progress message
     setSelectedFiles(validFiles);
-    setShowWorkInProgress(true);
     setShowCollectionModal(true);
   }, []);
 
@@ -573,30 +607,6 @@ export default function UploadPage() {
         </div>
       )}
 
-      {/* Work In Progress Modal */}
-      {showWorkInProgress && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <div className="flex items-center justify-center w-12 h-12 mx-auto bg-blue-100 rounded-full mb-4">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-semibold text-center text-gray-900 mb-2">Feature Coming Soon</h3>
-            <p className="text-center text-gray-600 mb-4">Document upload and processing is currently being developed. We're working hard to bring this feature to you!</p>
-            <button
-              onClick={() => {
-                setShowWorkInProgress(false);
-                setSelectedFiles([]);
-              }}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-            >
-              Got It
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Collection Name Modal */}
       {showCollectionModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
@@ -605,7 +615,7 @@ export default function UploadPage() {
               Create Study Notes Collection
             </h2>
             <p className="text-xs sm:text-sm text-gray-600 mb-4">
-              Enter a name for this collection (e.g., "Neural Networks – Unit 3")
+              Enter a name for this collection (e.g., &quot;Neural Networks &ndash; Unit 3&quot;)
             </p>
             <input
               type="text"
@@ -705,6 +715,15 @@ export default function UploadPage() {
           </div>
         </div>
       )}
+
+      {/* Status Modal */}
+      <StatusModal
+        show={statusModal.show}
+        type={statusModal.type as any}
+        title={statusModal.title}
+        message={statusModal.message}
+        onClose={() => setStatusModal(prev => ({ ...prev, show: false }))}
+      />
 
       {/* Floating Feedback Button */}
       <FeedbackButton userId={user?.id} userEmail={user?.email} />

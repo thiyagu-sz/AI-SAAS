@@ -1,26 +1,22 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { getSupabaseClient } from '@/app/lib/supabase';
 import Sidebar from '@/app/components/Sidebar';
 import FeedbackForm from '@/app/components/FeedbackForm';
-import FeedbackButton from '@/app/components/FeedbackButton';
 import { renderMarkdown } from '@/app/lib/markdown';
-import ProfessionalReportGenerator from '@/app/lib/reportGenerator';
+import { generateProfessionalHTML } from '@/app/lib/pdfGenerator';
 import { 
   MessageSquare,
   Send,
   Loader2,
   Search,
   Bell,
-  Save,
-  Download,
   FileText,
   File,
   X,
   Check,
-  AlertCircle
 } from 'lucide-react';
 
 interface Message {
@@ -33,14 +29,14 @@ interface Message {
 
 type FormatType = 'key-points' | 'main-concepts' | 'exam-points' | 'short-notes' | 'speech-notes' | 'presentation-notes' | 'summary';
 
-export default function ChatPage() {
+function ChatContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState<{ id: string; email?: string; user_metadata?: { full_name?: string } } | null>(null);
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<'gpt-3.5' | 'gpt-4'>('gpt-4');
   const [saveChat, setSaveChat] = useState(true); // Save chats by default
   const [showFormatOptions, setShowFormatOptions] = useState(false);
   const [selectedFormat, setSelectedFormat] = useState<FormatType>('key-points');
@@ -50,74 +46,50 @@ export default function ChatPage() {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState('100dvh');
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const hasMountedRef = useRef(false);
 
-  // Helper: Advanced Markdown Parser
-  function parseMarkdownToHtml(markdown: string) {
-    let html = markdown
-      // 1. Sanitize
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-      
-      // 2. HEADERS (With Auto-IDs for linking)
-      .replace(/^# (.*$)/gm, '<h1 class="main-title">$1</h1>')
-      .replace(/^## Table of Contents/gm, '<h2 class="toc-title">Table of Contents</h2><div class="toc-list">') // Start TOC div
-      .replace(/^## (.*$)/gm, (match: string, title: string) => {
-          // Create a slug for the ID
-          const slug = title.toLowerCase().replace(/[^\w]+/g, '-');
-          return `<h2 id="${slug}" class="section-title">${title}</h2>`;
-      })
-      .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-      
-      // 3. TABLE OF CONTENTS LIST CLOSING - simple heuristic: close any toc-list before first non-toc h2
-      // We'll close toc-list occurrences later if needed.
-      
-      // 4. BOLD, ITALIC, BLOCKQUOTE
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/^> (.*$)/gm, '<blockquote class="exec-summary">$1</blockquote>')
-      
-      // 5. TABLES (Professional)
-      .replace(/((?:\|.*\|\r?\n)+)/g, (match) => {
-        const rows = match.trim().split('\n');
-        let tableHtml = '<div class="table-wrapper"><table>';
-        rows.forEach((row, i) => {
-          if (row.includes('---')) return;
-          const cols = row.split('|').filter(c => c.trim() !== '');
-          tableHtml += '<tr>' + cols.map(c => 
-            i === 0 ? `<th>${c.trim()}</th>` : `<td>${c.trim()}</td>`
-          ).join('') + '</tr>';
-        });
-        return tableHtml + '</table></div>';
-      })
-      
-      // 6. LISTS
-      .replace(/^\s*[-*]\s+(.*$)/gm, '<ul><li>$1</li></ul>')
-      .replace(/<\/ul>\s*<ul>/g, '') // Merge lists
-      
-      // 7. PARAGRAPHS
-      .replace(/\n\n/g, '<br><br>');
+  // Handle Mobile Keyboard and Visual Viewport
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
 
-    // Post-processing: Ensure TOC list is closed if present
-    if (html.includes('<div class="toc-list">')) {
-      html = html.replace('<div class="toc-list">', '<div class="toc-list"><ul>');
-      // Insert closing </ul></div> before the first section-title
-      html = html.replace(/<h2 id="([^"]+)" class="section-title">/m, '</ul></div><h2 id="$1" class="section-title">');
-    }
+    const handleViewportChange = () => {
+      const viewport = window.visualViewport;
+      if (!viewport) return;
 
-    // Add anchors into the TOC: create list items from section titles
-    const sectionMatches = Array.from(html.matchAll(/<h2 id="([^"]+)" class="section-title">([^<]+)<\/h2>/g));
-    if (sectionMatches.length > 0) {
-      const tocEntries = sectionMatches.map(m => `<li><a href="#${m[1]}">${m[2]}</a></li>`).join('');
-      html = html.replace('</ul></div>', `</ul><div class="toc-entries">${tocEntries}</div></div>`);
-    }
+      const vHeight = viewport.height;
+      const windowHeight = window.innerHeight;
+      
+      // Detect if keyboard is likely open (viewport height significantly less than window height)
+      const keyboardActive = windowHeight - vHeight > 150;
+      setIsKeyboardOpen(keyboardActive);
+      setViewportHeight(`${vHeight}px`);
 
-    // Force page break after TOC by adding a page-break div
-    html = html.replace('</div><h2 id', '</div><div class="page-break"></div><h2 id');
+      // If keyboard is opening, scroll to bottom
+      if (keyboardActive) {
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      }
+    };
 
-    return html;
-  }
+    window.visualViewport.addEventListener('resize', handleViewportChange);
+    window.visualViewport.addEventListener('scroll', handleViewportChange);
+    
+    // Initial check
+    handleViewportChange();
+    
+    return () => {
+      window.visualViewport?.removeEventListener('resize', handleViewportChange);
+      window.visualViewport?.removeEventListener('scroll', handleViewportChange);
+    };
+  }, []);
+
+
 
   // Remove raw markdown bold markers that break UI (e.g. **bold**)
   const sanitizeContent = (text: string | undefined | null) => {
@@ -125,6 +97,7 @@ export default function ChatPage() {
     return text;
   };
 
+  // 1. Handle Auth
   useEffect(() => {
     const checkAuth = async () => {
       const supabase = getSupabaseClient();
@@ -136,15 +109,6 @@ export default function ChatPage() {
       }
 
       setUser(currentUser);
-      
-      // Load conversation if ID is in URL (use window.location.search to avoid useSearchParams prerender issue)
-      const conversationId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('id') : null;
-      if (conversationId) {
-        await loadConversation(conversationId);
-        setCurrentConversationId(conversationId);
-        setSaveChat(true); // Auto-enable save if loading existing conversation
-      }
-      
       setLoading(false);
     };
 
@@ -183,6 +147,29 @@ export default function ChatPage() {
       console.error('Error loading conversation:', error);
     }
   }, []);
+
+  // 2. Handle Conversation Loading (Reactive to URL)
+  const conversationIdFromUrl = searchParams.get('id');
+
+  useEffect(() => {
+    if (loading || !user) return;
+
+    if (conversationIdFromUrl) {
+      if (conversationIdFromUrl !== currentConversationId) {
+        loadConversation(conversationIdFromUrl);
+        setCurrentConversationId(conversationIdFromUrl);
+        setSaveChat(true);
+      }
+    } else {
+      // If we're on /chat without an ID, and we were previously on a conversation,
+      // it means the user clicked "New Chat" or navigated back to base /chat.
+      if (currentConversationId) {
+        setMessages([]);
+        setCurrentConversationId(null);
+        setSaveChat(true);
+      }
+    }
+  }, [conversationIdFromUrl, loading, user, currentConversationId, loadConversation]);
 
   // Clear any non-user-specific draft on mount (migration cleanup)
   useEffect(() => {
@@ -229,6 +216,13 @@ export default function ChatPage() {
       console.error('Failed to persist chat draft:', e);
     }
   }, [messages, currentConversationId, saveChat, selectedFormat, wordCount, user?.id, getStorageKey]);
+
+  // Scroll to bottom on new messages
+  useEffect(() => {
+    if (messages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
 
   // Restore draft from localStorage after auth/checks complete — only when there's no conversation loaded
   // Use user-specific key for isolation between users
@@ -285,6 +279,12 @@ export default function ChatPage() {
   // Show options panel on focus or paste
   const handleInputFocus = () => {
     setShowFormatOptions(true);
+    // Smooth scroll to bottom on focus to ensure input is visible above keyboard
+    if (typeof window !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 300);
+    }
   };
 
   const handleInputPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -718,472 +718,7 @@ ${userInput}`,
     return null; // Fallback return
   };
 
-  // Professional PDF export with clean formatting and content cleaning
-  const generateProfessionalPDF = (markdown: string, title: string) => {
-    // ===== CONTENT CLEANING PHASE =====
-    // Use the professional report generator to clean all content
-    const cleanedContent = ProfessionalReportGenerator.generate({
-      title: title,
-      content: markdown,
-      stripUrls: true,
-      stripMetadata: true,
-      stripDebugText: true,
-    });
 
-    // Verify the content is clean
-    const validation = ProfessionalReportGenerator.validate(cleanedContent);
-    if (!validation.isClean) {
-      console.warn('Content validation issues:', validation.issues);
-    }
-
-    // 2. Extract and clean title from first heading (## Heading)
-    const h2Match = cleanedContent.match(/^##\s+(.+?)$/m);
-    let docTitle = h2Match ? h2Match[1].trim() : (title || 'Study Notes');
-    
-    // Clean up marketing/UI language from title
-    docTitle = docTitle
-      .replace(/\b(?:overview|insights?|guide|introduction|tutorial|learn|discover|explore)\b/gi, '')
-      .replace(/\b(?:latest|current|today|quick|easy|simple|powerful)\b/gi, '')
-      .replace(/\b(?:AI|Chat|Tool|Platform|App|Assistant|Bot)\b/g, '')
-      .replace(/[📚🎓📖✨🚀]/g, '') // Remove emojis
-      .trim();
-    
-    // If title became too short, use a sensible default
-    if (docTitle.length < 3) {
-      docTitle = 'Study Notes';
-    }
-    
-    // Limit to 12 words
-    const titleWords = docTitle.split(/\s+/).slice(0, 12).join(' ');
-    const finalDocTitle = titleWords;
-
-    // 3. Extract intro paragraph (first non-heading, non-empty, non-URL line)
-    const introLines = cleanedContent
-      .split('\n')
-      .filter(line => {
-        const trimmed = line.trim();
-        return trimmed && 
-               !trimmed.startsWith('#') && 
-               !trimmed.startsWith('>') &&
-               !trimmed.startsWith('-') &&
-               !trimmed.startsWith('*') &&
-               !trimmed.startsWith('|') &&
-               trimmed.length > 5; // Ensure meaningful content
-      });
-    const introParagraph = introLines[0]?.substring(0, 200) || 'Professional Study Notes';
-
-    // ===== MARKDOWN TO HTML PARSING PHASE =====
-    let htmlContent = cleanedContent
-      // First, sanitize HTML special chars
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      // Remove any remaining URLs from HTML content
-      .replace(/https?:\/\/[^\s<>&"']+/g, '')
-      .replace(/www\.[^\s<>&"']+/g, '');
-
-    // Remove H1 headings (# Heading)
-    htmlContent = htmlContent.replace(/^#\s+.+?$/gm, '');
-
-    // Convert H2 (##) to <h2> and remove the ## prefix
-    htmlContent = htmlContent.replace(/^##\s+(.+?)$/gm, '<h2>$1</h2>');
-
-    // Convert H3 (###) to <h3> and remove the ### prefix
-    htmlContent = htmlContent.replace(/^###\s+(.+?)$/gm, '<h3>$1</h3>');
-
-    // Convert bold (**text**) to <strong>
-    htmlContent = htmlContent.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-
-    // Convert italic (*text*) to <em>
-    htmlContent = htmlContent.replace(/\*(.+?)\*/g, '<em>$1</em>');
-
-    // Convert reference numbers [1] to superscript
-    htmlContent = htmlContent.replace(/\[(\d+)\]/g, '<sup>$1</sup>');
-
-    // Convert blockquotes (> text)
-    htmlContent = htmlContent.replace(/^&gt;\s+(.+?)$/gm, '<blockquote>$1</blockquote>');
-
-    // Handle tables
-    htmlContent = htmlContent.replace(/((?:\|.+\|\n?)+)/g, (tableMatch) => {
-      const rows = tableMatch.trim().split('\n').filter(r => r.trim() && !r.includes('---'));
-      if (rows.length === 0) return '';
-      let tableHtml = '<table><tbody>';
-      rows.forEach((row, idx) => {
-        const cells = row.split('|').filter(c => c.trim());
-        const tag = idx === 0 ? 'th' : 'td';
-        tableHtml += `<tr>${cells.map(c => `<${tag}>${c.trim()}</${tag}>`).join('')}</tr>`;
-      });
-      return tableHtml + '</tbody></table>';
-    });
-
-    // Convert unordered list items (- or * at start of line)
-    htmlContent = htmlContent.replace(/^\s*[-•]\s+(.+?)$/gm, '<li>$1</li>');
-
-    // Wrap consecutive <li> items in <ul>
-    htmlContent = htmlContent.replace(/(<li>[^<]*<\/li>(\n<li>[^<]*<\/li>)*)/g, (match) => `<ul>${match}</ul>`);
-
-    // Remove duplicate <ul> wrappers
-    htmlContent = htmlContent.replace(/<\/ul>\s*<ul>/g, '');
-
-    // Remove underscore formatting (_text_)
-    htmlContent = htmlContent.replace(/_(.+?)_/g, '$1');
-
-    // Remove backticks (code formatting)
-    htmlContent = htmlContent.replace(/`(.+?)`/g, '$1');
-
-    // Clean up extra whitespace and newlines
-    htmlContent = htmlContent
-      .replace(/\n\n+/g, '</p><p>')  // Multiple newlines become paragraph breaks
-      .replace(/\n/g, ' ')            // Single newlines become spaces
-      .trim();
-
-    // Wrap any remaining text in paragraphs
-    if (!htmlContent.match(/<p>/) && htmlContent.trim()) {
-      htmlContent = `<p>${htmlContent}</p>`;
-    }
-
-    // Convert to tile layout - group h2 headings with content
-    const tileRegex = /<h2>(.+?)<\/h2>([\s\S]*?)(?=<h2>|$)/g;
-    let tiledContent = '';
-    let match;
-    
-    while ((match = tileRegex.exec(htmlContent)) !== null) {
-      const heading = match[1];
-      const content = match[2].trim();
-      tiledContent += `<h2>${heading}</h2><div class="tile">${content}</div>`;
-    }
-    
-    // If no h2 headings found, wrap all content in tiles
-    if (!tiledContent) {
-      const contentBlocks = htmlContent.split('<h3>');
-      tiledContent = contentBlocks.map((block, idx) => {
-        if (idx === 0) return block;
-        return `<div class="tile"><h3>${block}</div>`;
-      }).join('');
-    }
-
-    const dateStr = new Date().toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
-
-    const htmlDocument = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Study Notes</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    @media print {
-      @page {
-        size: A4;
-        margin: 2.5cm 2.5cm 2.5cm 2.5cm;
-        margin-top: 0;
-        margin-bottom: 0;
-        margin-header: 0;
-        margin-footer: 0;
-        @top-left {
-          content: "";
-        }
-        @top-center {
-          content: "";
-        }
-        @top-right {
-          content: "";
-        }
-        @bottom-left {
-          content: "";
-        }
-        @bottom-center {
-          content: "";
-        }
-        @bottom-right {
-          content: "";
-        }
-      }
-
-      html, body {
-        width: 100%;
-        height: 100%;
-        margin: 0 !important;
-        padding: 0 !important;
-        background: white !important;
-      }
-
-      body {
-        orphans: 3;
-        widows: 3;
-      }
-    }
-
-    body {
-      font-family: Georgia, 'Times New Roman', serif;
-      font-size: 11pt;
-      line-height: 1.6;
-      color: #000000;
-      background: white;
-      padding: 40px;
-      max-width: 210mm;
-      margin: 0 auto;
-    }
-
-    /* Header Section */
-    .document-header {
-      text-align: center;
-      margin-bottom: 2.5cm;
-      padding-bottom: 20px;
-      border-bottom: 2px solid #000;
-    }
-
-    .logo {
-      width: 60px;
-      height: 60px;
-      margin: 0 auto 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border-radius: 8px;
-      color: white;
-      font-weight: bold;
-      font-size: 24pt;
-      font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
-    }
-
-    h1 {
-      font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
-      font-size: 32pt;
-      font-weight: bold;
-      color: #000000;
-      margin-bottom: 10px;
-      line-height: 1.2;
-    }
-
-    .document-subtitle {
-      font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
-      font-size: 14pt;
-      color: #666666;
-      margin-top: 10px;
-      font-style: italic;
-    }
-
-    /* Intro Section */
-    .intro-section {
-      margin-bottom: 2em;
-      padding: 15px;
-      background-color: #f9f9f9;
-      border-left: 4px solid #667eea;
-    }
-
-    .intro-text {
-      font-size: 11pt;
-      color: #333333;
-      line-height: 1.6;
-      margin-bottom: 0.5em;
-    }
-
-    /* Content - Tile Layout */
-    .content {
-      margin-top: 2em;
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1.5em;
-      page-break-inside: avoid;
-    }
-
-    .tile {
-      background-color: #f9f9f9;
-      border: 1px solid #e0e0e0;
-      border-radius: 6px;
-      padding: 1.2em;
-      break-inside: avoid;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    }
-
-    h2 {
-      font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
-      font-size: 18pt;
-      font-weight: bold;
-      color: #667eea;
-      margin-bottom: 0.8em;
-      padding-bottom: 6px;
-      border-bottom: 2px solid #667eea;
-      page-break-after: avoid;
-      grid-column: 1 / -1;
-    }
-
-    h3 {
-      font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
-      font-size: 13pt;
-      font-weight: bold;
-      color: #1a1a1a;
-      margin-bottom: 0.6em;
-      page-break-after: avoid;
-    }
-
-    p {
-      margin-bottom: 0.8em;
-      text-align: left;
-      font-size: 10pt;
-      line-height: 1.5;
-    }
-
-    strong {
-      font-weight: bold;
-      color: #000;
-    }
-
-    em {
-      font-style: italic;
-    }
-
-    sup {
-      font-size: 0.7em;
-      vertical-align: super;
-      line-height: 0;
-    }
-
-    /* Lists */
-    ul, ol {
-      margin-left: 2em;
-      margin-bottom: 1em;
-      padding-left: 0;
-    }
-
-    li {
-      margin-bottom: 0.5em;
-      text-align: justify;
-    }
-
-    /* Tables */
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 1.5em 0;
-      font-size: 10pt;
-      break-inside: avoid;
-    }
-
-    th {
-      background-color: #f0f0f0;
-      border: 1px solid #cccccc;
-      padding: 12px;
-      text-align: left;
-      font-weight: bold;
-      color: #000;
-    }
-
-    td {
-      border: 1px solid #cccccc;
-      padding: 10px 12px;
-      text-align: left;
-    }
-
-    tbody tr:nth-child(even) {
-      background-color: #f9f9f9;
-    }
-
-    /* Blockquotes */
-    blockquote {
-      margin: 1.5em 0;
-      padding-left: 1.5em;
-      border-left: 4px solid #667eea;
-      color: #555555;
-      font-style: italic;
-      page-break-inside: avoid;
-    }
-
-    /* Page Break */
-    .page-break {
-      page-break-before: always;
-      height: 0;
-      margin: 0;
-      padding: 0;
-    }
-
-    .no-break {
-      page-break-inside: avoid;
-    }
-
-    /* Footer */
-    .document-footer {
-      margin-top: 3em;
-      padding-top: 1em;
-      border-top: 1px solid #e0e0e0;
-      text-align: center;
-      font-size: 9pt;
-      color: #999999;
-      page-break-inside: avoid;
-    }
-
-    /* Print-specific adjustments */
-    @media print {
-      body {
-        padding: 0;
-      }
-
-      .document-header {
-        margin-bottom: 2cm;
-        padding-bottom: 15px;
-      }
-
-      h2 {
-        page-break-after: avoid;
-        margin-top: 1.2em;
-      }
-
-      h3 {
-        page-break-after: avoid;
-      }
-
-      p, li, td, blockquote {
-        page-break-inside: avoid;
-      }
-
-      a {
-        color: inherit;
-        text-decoration: none;
-      }
-    }
-  </style>
-</head>
-<body>
-  <!-- Header Section -->
-  <div class="document-header">
-    <div class="logo">📚</div>
-    <h1>${finalDocTitle}</h1>
-    <p class="document-subtitle">Professional Study Notes</p>
-  </div>
-
-  <!-- Introduction Section -->
-  <div class="intro-section">
-    <p class="intro-text">${introParagraph}</p>
-    <p class="intro-text"><strong>Generated:</strong> ${dateStr}</p>
-  </div>
-
-  <!-- Main Content with Tile Layout -->
-  <div class="content">
-    ${tiledContent}
-  </div>
-
-  <!-- Footer -->
-  <div class="document-footer">
-    <p>This document was automatically generated and is ready for publication.</p>
-  </div>
-</body>
-</html>
-    `;
-
-    return htmlDocument;
-  };
 
   const handleExport = useCallback(async (type: 'pdf' | 'doc', messageContent: string) => {
     if (!user || !messageContent) {
@@ -1199,10 +734,10 @@ ${userInput}`,
       const cleanTitle = title.replace(/[^a-z0-9]/gi, '_');
 
       if (type === 'pdf') {
-        // Generate document (text/markdown format for reliability)
-        const htmlDocument = generateProfessionalPDF(messageContent, title);
+        // Generate document in PDF format
+        const htmlDocument = generateProfessionalHTML(messageContent, title);
         
-        showToastMessage('Preparing document...');
+        showToastMessage('Generating PDF...');
         
         try {
           const response = await fetch('/api/chat/pdf', {
@@ -1212,7 +747,7 @@ ${userInput}`,
             },
             body: JSON.stringify({
               html: htmlDocument,
-              filename: `${cleanTitle}.txt`,
+              filename: `${cleanTitle}.pdf`,
             }),
           });
 
@@ -1225,13 +760,13 @@ ${userInput}`,
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `${cleanTitle}.txt`;
+          a.download = `${cleanTitle}.pdf`;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
           
-          showToastMessage('Document downloaded! For PDF, use browser Print → Save as PDF');
+          showToastMessage('PDF downloaded successfully!');
         } catch (pdfError) {
           console.error('Document export error:', pdfError);
           showToastMessage('Trying alternative export...');
@@ -1318,28 +853,28 @@ ${userInput}`,
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-[100dvh] flex items-center justify-center bg-gray-50">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex bg-gray-50 overflow-hidden fixed inset-0" style={{ height: viewportHeight }}>
       <Sidebar user={user} />
 
-      <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
+      <div className="flex-1 flex flex-col overflow-hidden relative">
         {/* Top Navbar - Match Dashboard */}
-        <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
+        <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-gray-900">AI Assistant</h1>
-            <div className="flex items-center gap-4">
-              <div className="relative hidden sm:block">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">AI Assistant</h1>
+            <div className="flex items-center gap-2 sm:gap-4">
+              <div className="relative hidden md:block">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Search..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none w-64"
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none w-64 text-sm"
                 />
               </div>
               <button
@@ -1357,17 +892,26 @@ ${userInput}`,
         </header>
 
         {/* Messages Area */}
-        <main className="flex-1 overflow-y-auto bg-white">
-          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
+        <main className="flex-1 overflow-y-auto bg-white scroll-smooth" ref={scrollAreaRef}>
+          <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 pb-20">
             {messages.length === 0 ? (
               <div className="text-center py-12">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <MessageSquare className="w-8 h-8 text-gray-400" />
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <MessageSquare className="w-8 h-8 text-blue-600" />
                 </div>
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">How can I help you today?</h2>
-                <p className="text-gray-500 text-sm max-w-md mx-auto">
-                  Ask questions about your uploaded documents, generate study notes, or get help with your studies.
+                <h2 className="text-xl font-semibold text-gray-900 mb-3">Welcome to QuickNotes! 📚</h2>
+                <p className="text-gray-600 text-sm max-w-md mx-auto mb-4">
+                  Paste your study content (lecture notes, articles, research papers, etc.) into the text field below, then select your desired output format.
                 </p>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto text-left">
+                  <p className="text-xs font-semibold text-blue-900 mb-2">✨ How to use:</p>
+                  <ul className="text-xs text-blue-800 space-y-1">
+                    <li>📋 Paste your content in the chat below</li>
+                    <li>🎯 Select format: Key Points, Summary, Exam Notes, etc.</li>
+                    <li>📊 Set word count for your output</li>
+                    <li>💾 Export as PDF or download as Markdown</li>
+                  </ul>
+                </div>
               </div>
             ) : (
               <>
@@ -1583,10 +1127,10 @@ ${userInput}`,
         )}
 
         {/* Input Area */}
-        <div className="bg-white border-t border-gray-200 sticky bottom-0 z-20">
+        <footer className="bg-white border-t border-gray-200 z-20 flex-shrink-0 pb-[env(safe-area-inset-bottom)]">
           <div className="max-w-3xl mx-auto px-3 sm:px-6 py-2 sm:py-3">
-            {/* Save Chat Toggle */}
-            <div className="mb-2 flex items-center justify-between flex-wrap gap-2">
+            {/* Save Chat Toggle - Hidden on small mobile when keyboard is open to save space */}
+            <div className={`mb-2 flex items-center justify-between flex-wrap gap-2 ${isKeyboardOpen ? 'hidden sm:flex' : 'flex'}`}>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -1594,13 +1138,12 @@ ${userInput}`,
                   onChange={(e) => setSaveChat(e.target.checked)}
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
-                <span className="text-xs sm:text-sm text-gray-700">Save this chat for future reference</span>
+                <span className="text-xs text-gray-700">Save chat</span>
               </label>
               {saveChat && (
                 <div className="flex items-center gap-1 text-xs text-blue-600">
                   <Check className="w-3 h-3" />
-                  <span className="hidden sm:inline">Chat will be saved</span>
-                  <span className="sm:hidden">Saved</span>
+                  <span className="hidden sm:inline text-[10px] uppercase tracking-wider font-bold">Autosave active</span>
                 </div>
               )}
             </div>
@@ -1610,25 +1153,34 @@ ${userInput}`,
                 <textarea
                   ref={textareaRef}
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    // Auto-resize textarea
+                    e.target.style.height = 'auto';
+                    e.target.style.height = `${Math.min(e.target.scrollHeight, 120)}px`;
+                  }}
                   onKeyDown={handleKeyPress}
                   onFocus={handleInputFocus}
                   onPaste={handleInputPaste}
                   placeholder="Message AI Assistant..."
-                  className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border-none rounded-2xl focus:ring-0 focus:outline-none resize-none text-sm bg-transparent"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-3 border-none rounded-2xl focus:ring-0 focus:outline-none resize-none text-sm bg-transparent max-h-[120px]"
                   rows={1}
                 />
               </div>
               <button
                 onClick={handleSend}
                 disabled={!input.trim() || isLoading}
-                className="flex items-center justify-center bg-blue-600 text-white p-2.5 sm:p-3 rounded-2xl hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed min-w-[40px] sm:min-w-[44px] flex-shrink-0"
+                className="flex items-center justify-center bg-blue-600 text-white w-10 h-10 sm:w-11 sm:h-11 rounded-full hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 shadow-sm"
               >
-                <Send className="w-4 h-4 sm:w-5 sm:h-5" />
+                {isLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4 sm:w-5 sm:h-5" />
+                )}
               </button>
             </div>
           </div>
-        </div>
+        </footer>
 
         {/* Toast Notification */}
         {showToast.show && (
@@ -1651,10 +1203,19 @@ ${userInput}`,
             }}
           />
         )}
-
-        {/* Floating Feedback Button */}
-        <FeedbackButton userId={user?.id} userEmail={user?.email} />
       </div>
     </div>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    }>
+      <ChatContent />
+    </Suspense>
   );
 }

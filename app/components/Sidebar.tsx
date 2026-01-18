@@ -18,6 +18,8 @@ import {
 import { getSupabaseClient, clearSupabaseClient } from '@/app/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import StatusModal from './StatusModal';
+import ConfirmationModal from './ConfirmationModal';
 
 interface SidebarProps {
   user?: {
@@ -44,13 +46,26 @@ export default function Sidebar({ user }: SidebarProps) {
   const [chatHistory, setChatHistory] = useState<ChatConversation[]>([]);
   const [showAllChats, setShowAllChats] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [chatToDelete, setChatToDelete] = useState<string | null>(null);
+  const [statusModal, setStatusModal] = useState({
+    show: false,
+    type: 'success' as 'success' | 'error' | 'warning' | 'info',
+    title: '',
+    message: '',
+  });
 
-  const handleDeleteChat = async (e: React.MouseEvent, chatId: string) => {
+  const handleDeleteChat = (e: React.MouseEvent, chatId: string) => {
     e.preventDefault();
     e.stopPropagation();
+    setChatToDelete(chatId);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteChat = async () => {
+    if (!chatToDelete) return;
     
-    if (!confirm('Delete this conversation?')) return;
-    
+    const chatId = chatToDelete;
     setDeletingId(chatId);
     try {
       const supabase = getSupabaseClient();
@@ -70,14 +85,32 @@ export default function Sidebar({ user }: SidebarProps) {
         if (pathname === `/chat` && window.location.search.includes(chatId)) {
           router.push('/chat');
         }
+        setStatusModal({
+          show: true,
+          type: 'success',
+          title: 'Deleted',
+          message: 'Conversation deleted successfully.',
+        });
       } else {
-        alert('Failed to delete conversation');
+        setStatusModal({
+          show: true,
+          type: 'error',
+          title: 'Delete Failed',
+          message: 'Failed to delete conversation. Please try again.',
+        });
       }
     } catch (error) {
       console.error('Error deleting chat:', error);
-      alert('Error deleting conversation');
+      setStatusModal({
+        show: true,
+        type: 'error',
+        title: 'Error',
+        message: 'An error occurred while deleting the conversation.',
+      });
     } finally {
       setDeletingId(null);
+      setChatToDelete(null);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -237,11 +270,17 @@ export default function Sidebar({ user }: SidebarProps) {
       )}
 
       {/* Sidebar */}
-      <div className={`h-screen w-64 bg-white border-r border-gray-200 flex flex-col fixed left-0 top-0 z-40 transform transition-transform duration-300 lg:relative lg:z-auto ${
+      <div className={`h-[100dvh] w-64 bg-white border-r border-gray-200 flex flex-col fixed left-0 top-0 z-40 transform transition-transform duration-300 lg:relative lg:z-auto ${
         isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
       }`}>
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-900">QuickNotes</h1>
+        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+          <Link href="/" className="flex items-center">
+            <img 
+              src="/logo.png" 
+              alt="QuickNotes Logo" 
+              className="h-8 w-auto object-contain"
+            />
+          </Link>
           <button
             onClick={() => setIsMobileMenuOpen(false)}
             className="lg:hidden p-1 hover:bg-gray-100 rounded"
@@ -356,6 +395,29 @@ export default function Sidebar({ user }: SidebarProps) {
         </div>
       </div>
       </div>
+      
+      {/* Modals */}
+      <ConfirmationModal
+        show={showDeleteConfirm}
+        title="Delete Conversation"
+        message="Are you sure you want to delete this conversation? This action cannot be undone."
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        onConfirm={confirmDeleteChat}
+        onCancel={() => {
+          setShowDeleteConfirm(false);
+          setChatToDelete(null);
+        }}
+        isLoading={deletingId !== null}
+      />
+
+      <StatusModal
+        show={statusModal.show}
+        type={statusModal.type}
+        title={statusModal.title}
+        message={statusModal.message}
+        onClose={() => setStatusModal(prev => ({ ...prev, show: false }))}
+      />
     </>
   );
 }

@@ -18,16 +18,16 @@ export default function LandingPage() {
       {/* Navigation */}
       <nav className="sticky top-0 z-50 w-full border-b border-[#e7e7f3] glass-nav">
         <div className="px-4 md:px-10 py-3 flex items-center justify-between max-w-7xl mx-auto">
-          <Link href="/" className="flex items-center gap-3 text-text-main group cursor-pointer">
-            <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-              <span className="material-symbols-outlined text-[24px]">auto_stories</span>
-            </div>
-            <h2 className="text-text-main text-lg font-bold leading-tight tracking-tight">QuickNotes</h2>
+          <Link href="/" className="flex items-center group cursor-pointer">
+            <img 
+              src="/logo.png" 
+              alt="QuickNotes Logo" 
+              className="h-8 w-auto md:h-10 object-contain"
+            />
           </Link>
           <div className="hidden md:flex items-center gap-8">
             <a className="text-text-main text-sm font-medium hover:text-primary transition-colors" href="#features">Features</a>
             <a className="text-text-main text-sm font-medium hover:text-primary transition-colors" href="#how-it-works">How it Works</a>
-            <a className="text-text-main text-sm font-medium hover:text-primary transition-colors" href="#pricing">Pricing</a>
           </div>
           <div className="flex items-center gap-4">
             <Link href="/login" className="hidden sm:block text-sm font-medium text-text-main hover:text-primary">
@@ -52,17 +52,17 @@ export default function LandingPage() {
         </div>
         <div className="max-w-4xl text-center flex flex-col gap-6 items-center z-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-blue-100 shadow-sm mb-2">
-            <span className="flex h-2 w-2 rounded-full bg-primary"></span>
-            <span className="text-xs font-semibold text-primary uppercase tracking-wide">New: GPT-4o Integration</span>
+            <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse"></span>
+            <span className="text-xs font-semibold text-primary uppercase tracking-wide">Powered by OpenRouter AI Models</span>
           </div>
           <h1 className="text-text-main text-5xl md:text-6xl lg:text-7xl font-black leading-[1.1] tracking-tight">
-            Smarter notes.<br/>
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-600">Better results.</span>
+            Turn lecture PDFs into<br/>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-indigo-600">exam-ready notes.</span>
           </h1>
           <p className="text-text-muted text-lg md:text-xl font-normal max-w-2xl leading-relaxed">
-            Turn dense PDFs into exam-ready notes in seconds using AI. Start saving time today.
+            Quickly convert dense textbooks and slides into structured study guides. Save hours of preparation and focus on what actually matters.
           </p>
-          <p className="text-text-muted text-xs">This SaaS product is currently in testing mode for learning and improvement purposes.</p>
+          <p className="text-text-muted text-xs italic">Uses advanced open-source language models for high-accuracy extraction.</p>
           <div className="flex flex-wrap justify-center gap-4 pt-4">
             <button
               onClick={() => router.push('/signup')}
@@ -74,7 +74,7 @@ export default function LandingPage() {
               onClick={scrollToFeatures}
               className="flex min-w-[140px] cursor-pointer items-center justify-center rounded-lg h-12 px-6 bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-text-main text-base font-bold transition-all"
             >
-              View Demo
+              View Features
             </button>
           </div>
         </div>
@@ -98,7 +98,7 @@ export default function LandingPage() {
       {/* Trust / Value Strip */}
       <section className="border-y border-[#e7e7f3] bg-white py-8">
         <div className="max-w-7xl mx-auto px-4 md:px-10 flex flex-col md:flex-row items-center justify-center gap-6 md:gap-12 text-center md:text-left">
-          <h3 className="text-text-main text-lg font-bold">Built for students • Exam-focused • Privacy-first</h3>
+          <h3 className="text-text-main text-lg font-bold">Built for Students • Exam-Ready Output • Privacy Focused</h3>
           <div className="hidden md:block w-px h-8 bg-gray-200"></div>
           <div className="flex items-center gap-6 opacity-70 grayscale hover:grayscale-0 transition-all">
             <div className="flex items-center gap-2">
@@ -130,8 +130,8 @@ export default function LandingPage() {
               <span className="material-symbols-outlined text-[28px]">auto_awesome</span>
             </div>
             <div className="flex flex-col gap-2">
-              <h4 className="text-text-main text-lg font-bold">AI Notes Generator</h4>
-              <p className="text-text-muted text-sm leading-relaxed">Instantly summarize long documents into key points and actionable study notes.</p>
+              <h4 className="text-text-main text-lg font-bold">Smart Summary</h4>
+              <p className="text-text-muted text-sm leading-relaxed">Turn 50-page PDFs into 5-page clear summaries focusing on key exam topics.</p>
             </div>
           </div>
           {/* Feature 2 */}
@@ -140,8 +140,8 @@ export default function LandingPage() {
               <span className="material-symbols-outlined text-[28px]">chat_bubble</span>
             </div>
             <div className="flex flex-col gap-2">
-              <h4 className="text-text-main text-lg font-bold">Smart Assistant</h4>
-              <p className="text-text-muted text-sm leading-relaxed">Chat with your notes to clarify concepts, ask questions, and get instant answers.</p>
+              <h4 className="text-text-main text-lg font-bold">Study Assistant</h4>
+              <p className="text-text-muted text-sm leading-relaxed">Ask questions directly to your documents to clarify complex formulas or dates.</p>
             </div>
           </div>
           {/* Feature 3 */}
@@ -150,18 +150,18 @@ export default function LandingPage() {
               <span className="material-symbols-outlined text-[28px]">ios_share</span>
             </div>
             <div className="flex flex-col gap-2">
-              <h4 className="text-text-main text-lg font-bold">Export Ready</h4>
-              <p className="text-text-muted text-sm leading-relaxed">Export your summaries to PDF, Markdown, or directly to Notion with one click.</p>
+              <h4 className="text-text-main text-lg font-bold">Pro PDF Export</h4>
+              <p className="text-text-muted text-sm leading-relaxed">Export your AI-generated notes into beautifully formatted, branded PDFs for printing.</p>
             </div>
           </div>
           {/* Feature 4 */}
           <div className="group flex flex-col gap-4 rounded-xl border border-[#cfcfe7] bg-white p-6 transition-all hover:border-primary/50 hover:shadow-soft hover:-translate-y-1">
             <div className="size-12 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-              <span className="material-symbols-outlined text-[28px]">lock</span>
+              <span className="material-symbols-outlined text-[28px]">history</span>
             </div>
             <div className="flex flex-col gap-2">
-              <h4 className="text-text-main text-lg font-bold">Privacy First</h4>
-              <p className="text-text-muted text-sm leading-relaxed">Your data is encrypted and secure. We never train our models on your private documents.</p>
+              <h4 className="text-text-main text-lg font-bold">History Archive</h4>
+              <p className="text-text-muted text-sm leading-relaxed">All your uploaded materials and generated notes are saved securely for later review.</p>
             </div>
           </div>
         </div>
@@ -172,7 +172,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-text-main mb-4">From PDF to A+ in 3 steps</h2>
-            <p className="text-text-muted text-lg max-w-2xl mx-auto">Stop highlighting everything. Let AI identify what actually matters.</p>
+            <p className="text-text-muted text-lg max-w-2xl mx-auto">Stop highlighting everything. Let AI identify what actually matters for your exams.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
             {/* Connecting Line (Desktop) */}
@@ -183,25 +183,25 @@ export default function LandingPage() {
                 <span className="material-symbols-outlined text-[40px] text-blue-500">upload_file</span>
                 <div className="absolute -top-3 -right-3 size-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm shadow-md">1</div>
               </div>
-              <h3 className="text-xl font-bold text-text-main">Upload Documents</h3>
-              <p className="text-text-muted text-sm max-w-[280px]">Drag and drop your course slides, textbooks, or research papers.</p>
+              <h3 className="text-xl font-bold text-text-main">Upload Materials</h3>
+              <p className="text-text-muted text-sm max-w-[280px]">Upload your course slides, textbooks, or research papers.</p>
             </div>
             {/* Step 2 */}
             <div className="flex flex-col items-center text-center gap-4">
               <div className="size-24 rounded-2xl bg-white border border-gray-100 shadow-lg flex items-center justify-center mb-4 relative z-10">
-                <span className="material-symbols-outlined text-[40px] text-purple-500">tune</span>
+                <span className="material-symbols-outlined text-[40px] text-purple-500">auto_fix_high</span>
                 <div className="absolute -top-3 -right-3 size-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm shadow-md">2</div>
               </div>
-              <h3 className="text-xl font-bold text-text-main">Choose Output</h3>
-              <p className="text-text-muted text-sm max-w-[280px]">Select between summary, flashcards, or quiz mode depending on your needs.</p>
+              <h3 className="text-xl font-bold text-text-main">AI Extraction</h3>
+              <p className="text-text-muted text-sm max-w-[280px]">Our advanced LLMs process the text and extract essential study points.</p>
             </div>
             {/* Step 3 */}
             <div className="flex flex-col items-center text-center gap-4">
               <div className="size-24 rounded-2xl bg-white border border-gray-100 shadow-lg flex items-center justify-center mb-4 relative z-10">
-                <span className="material-symbols-outlined text-[40px] text-emerald-500">download_done</span>
+                <span className="material-symbols-outlined text-[40px] text-emerald-500">history_edu</span>
                 <div className="absolute -top-3 -right-3 size-8 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm shadow-md">3</div>
               </div>
-              <h3 className="text-xl font-bold text-text-main">Export or Chat</h3>
+              <h3 className="text-xl font-bold text-text-main">Study & Ace</h3>
               <p className="text-text-muted text-sm max-w-[280px]">Download your polished notes or chat with the AI to drill down on specifics.</p>
             </div>
           </div>
@@ -220,31 +220,31 @@ export default function LandingPage() {
               <span className="material-symbols-outlined">school</span>
             </div>
             <h3 className="text-lg font-bold text-text-main mb-2">Exam Prep</h3>
-            <p className="text-text-muted text-sm">Condense semester-long courses into 5-page cheat sheets.</p>
+            <p className="text-text-muted text-sm">Condense semester-long courses into 5-page high-impact cheat sheets.</p>
           </div>
           {/* Card 2 */}
           <div className="p-6 rounded-xl bg-gray-50 border border-transparent hover:border-gray-200 transition-colors">
             <div className="mb-4 inline-flex p-2 bg-white rounded-lg shadow-sm text-orange-500">
               <span className="material-symbols-outlined">timer</span>
             </div>
-            <h3 className="text-lg font-bold text-text-main mb-2">Last-minute Revision</h3>
-            <p className="text-text-muted text-sm">Quickly extract key definitions and formulas minutes before the test.</p>
+            <h3 className="text-lg font-bold text-text-main mb-2">Quick Revision</h3>
+            <p className="text-text-muted text-sm">Extract key definitions and formulas minutes before your next lecture or test.</p>
           </div>
           {/* Card 3 */}
           <div className="p-6 rounded-xl bg-gray-50 border border-transparent hover:border-gray-200 transition-colors">
             <div className="mb-4 inline-flex p-2 bg-white rounded-lg shadow-sm text-pink-500">
               <span className="material-symbols-outlined">slideshow</span>
             </div>
-            <h3 className="text-lg font-bold text-text-main mb-2">Presentations</h3>
-            <p className="text-text-muted text-sm">Turn research papers into bullet points for your slide deck.</p>
+            <h3 className="text-lg font-bold text-text-main mb-2">Slide Summaries</h3>
+            <p className="text-text-muted text-sm">Turn 100+ PowerPoint slides into structured bullet points for fast reading.</p>
           </div>
           {/* Card 4 */}
           <div className="p-6 rounded-xl bg-gray-50 border border-transparent hover:border-gray-200 transition-colors">
             <div className="mb-4 inline-flex p-2 bg-white rounded-lg shadow-sm text-cyan-500">
               <span className="material-symbols-outlined">assignment</span>
             </div>
-            <h3 className="text-lg font-bold text-text-main mb-2">Assignments</h3>
-            <p className="text-text-muted text-sm">Understand complex topics faster to write better essays.</p>
+            <h3 className="text-lg font-bold text-text-main mb-2">Research</h3>
+            <p className="text-text-muted text-sm">Understand complex academic papers faster to write better assignments.</p>
           </div>
         </div>
       </section>
@@ -259,7 +259,7 @@ export default function LandingPage() {
               Start preparing smarter today
             </h2>
             <p className="text-blue-100 text-lg md:text-xl max-w-xl">
-              Try QuickNotes and get your first summary for free.
+              Join students using QuickNotes to optimize their study time.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 mt-4">
               <button
@@ -272,10 +272,10 @@ export default function LandingPage() {
                 onClick={scrollToFeatures}
                 className="flex items-center justify-center rounded-lg h-14 px-8 bg-primary-dark/30 text-white border border-white/20 text-lg font-bold hover:bg-primary-dark/50 transition-all"
               >
-                View Pricing
+                View Features
               </button>
             </div>
-            <p className="text-blue-200 text-sm mt-4">No credit card required • Cancel anytime</p>
+            <p className="text-blue-200 text-sm mt-4">No credit card required • Student-focused AI</p>
           </div>
         </div>
       </section>
@@ -286,11 +286,11 @@ export default function LandingPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-12">
             <div className="col-span-2 lg:col-span-2 flex flex-col gap-4">
               <div className="flex items-center gap-2 text-text-main">
-                <span className="material-symbols-outlined text-primary">auto_stories</span>
+                <img src="/logo.png" alt="Logo" className="h-6 w-auto object-contain" />
                 <h2 className="text-lg font-bold">QuickNotes</h2>
               </div>
               <p className="text-text-muted text-sm max-w-xs">
-                Empowering students with AI tools to learn faster, retain more, and stress less.
+                Empowering students with AI tools to learn faster, retain more, and stress less during exam season.
               </p>
               <div className="flex gap-4 mt-2">
                 <a className="text-text-muted hover:text-primary" href="#"><span className="sr-only">Twitter</span><svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84"></path></svg></a>
@@ -300,12 +300,11 @@ export default function LandingPage() {
             <div className="flex flex-col gap-3">
               <h3 className="font-bold text-text-main text-sm">Product</h3>
               <a className="text-text-muted text-sm hover:text-primary" href="#features">Features</a>
-              <a className="text-text-muted text-sm hover:text-primary" href="#pricing">Pricing</a>
-              <a className="text-text-muted text-sm hover:text-primary" href="#how-it-works">Integration</a>
+              <a className="text-text-muted text-sm hover:text-primary" href="#how-it-works">How it Works</a>
               <a className="text-text-muted text-sm hover:text-primary" href="#">Changelog</a>
             </div>
             <div className="flex flex-col gap-3">
-              <h3 className="font-bold text-text-main text-sm">Company</h3>
+              <h3 className="font-bold text-text-main text-sm">Developer Info</h3>
               <a className="text-text-muted text-sm hover:text-primary" href="https://thiyagu-portfolio.me/" target="_blank" rel="noopener noreferrer">About</a>
               <a className="text-text-muted text-sm hover:text-primary" href="https://thiyagu-portfolio.me/" target="_blank" rel="noopener noreferrer">Blog</a>
               <a className="text-text-muted text-sm hover:text-primary" href="https://thiyagu-portfolio.me/" target="_blank" rel="noopener noreferrer">Careers</a>
@@ -321,7 +320,7 @@ export default function LandingPage() {
           <div className="border-t border-[#e7e7f3] pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex flex-col items-center md:items-start gap-1">
               <p className="text-text-muted text-xs">This SaaS product is currently in testing mode for learning and improvement purposes.</p>
-              <p className="text-text-muted text-sm">© 2024 QuickNotes . All rights reserved Dev thiyagu.</p>
+              <p className="text-text-muted text-sm">© 2026 QuickNotes . All rights reserved. Built by Thiyagu.</p>
             </div>
             <div className="flex items-center gap-1 text-xs text-text-muted">
               <span className="w-2 h-2 rounded-full bg-green-500"></span>
