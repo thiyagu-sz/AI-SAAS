@@ -334,6 +334,101 @@ async function generateEmbedding(text: string): Promise<number[]> {
 
 type FormatType = 'key-points' | 'main-concepts' | 'exam-points' | 'short-notes' | 'speech-notes' | 'presentation-notes' | 'summary';
 
+// Rate limiting and retry logic
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 1000; // 1 second
+const MAX_RETRY_DELAY = 10000; // 10 seconds
+
+async function sleepMs(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function callOpenRouterAPI(
+  messages: any[],
+  options: any = {}
+) {
+  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+  
+  if (!apiKey) {
+    throw new Error('OpenRouter API key not found');
+  }
+
+  let lastError: any = null;
+  let retryDelay = INITIAL_RETRY_DELAY;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+          'X-Title': 'QuickNotes',
+        },
+        body: JSON.stringify({
+          model: 'tngtech/deepseek-r1t2-chimera:free',
+          messages,
+          temperature: options.temperature || 0.3,
+          max_tokens: options.maxTokens || 2000,
+          ...options,
+        }),
+      });
+
+      // Check for rate limiting
+      if (response.status === 429) {
+        lastError = new Error('Rate limit exceeded');
+        
+        // Extract retry-after header if available
+        const retryAfter = response.headers.get('retry-after');
+        const delayMs = retryAfter ? parseInt(retryAfter) * 1000 : retryDelay;
+        
+        if (attempt < MAX_RETRIES) {
+          console.warn(`⚠️ Rate limit hit (429). Attempt ${attempt}/${MAX_RETRIES}. Waiting ${delayMs}ms before retry...`);
+          await sleepMs(delayMs);
+          retryDelay = Math.min(retryDelay * 2, MAX_RETRY_DELAY); // Exponential backoff
+          continue;
+        }
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`OpenRouter API error (attempt ${attempt}/${MAX_RETRIES}):`, response.status, errorText);
+        
+        lastError = new Error(`API error ${response.status}: ${errorText.substring(0, 200)}`);
+        
+        // Don't retry on auth errors
+        if (response.status === 401) {
+          throw lastError;
+        }
+        
+        // Retry on 5xx errors
+        if (response.status >= 500 && attempt < MAX_RETRIES) {
+          console.warn(`⚠️ Server error ${response.status}. Attempt ${attempt}/${MAX_RETRIES}. Retrying...`);
+          await sleepMs(retryDelay);
+          retryDelay = Math.min(retryDelay * 2, MAX_RETRY_DELAY);
+          continue;
+        }
+        
+        throw lastError;
+      }
+
+      return response;
+    } catch (error) {
+      lastError = error;
+      
+      if (attempt < MAX_RETRIES) {
+        console.warn(`⚠️ Error on attempt ${attempt}/${MAX_RETRIES}. Retrying...`, error);
+        await sleepMs(retryDelay);
+        retryDelay = Math.min(retryDelay * 2, MAX_RETRY_DELAY);
+        continue;
+      }
+    }
+  }
+
+  throw lastError || new Error('Failed to call OpenRouter API after max retries');
+}
+
 function generateFormatPrompt(format: FormatType, wordCount: number): { systemPrompt: string; userPromptPrefix: string } {
   const formatPrompts: Record<FormatType, { systemPrompt: string; userPromptPrefix: string }> = {
     'key-points': {
@@ -456,29 +551,18 @@ async function generateAINotes(text: string, outputType: FormatType = 'key-point
     // Get format-specific prompts
     const { systemPrompt, userPromptPrefix } = generateFormatPrompt(outputType, wordCount);
     
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-        'X-Title': 'QuickNotes',
+    const response = await callOpenRouterAPI([
+      {
+        role: 'system',
+        content: systemPrompt,
       },
-      body: JSON.stringify({
-        model: 'tngtech/deepseek-r1t2-chimera:free',
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt,
-          },
-          {
-            role: 'user',
-            content: `${userPromptPrefix}\n\n${textToProcess}`,
-          },
-        ],
-        temperature: 0.3, // Lower temperature for more focused, factual notes
-        max_tokens: 2000, // Allow more tokens for comprehensive notes
-      }),
+      {
+        role: 'user',
+        content: `${userPromptPrefix}\n\n${textToProcess}`,
+      },
+    ], {
+      temperature: 0.3,
+      maxTokens: 2000,
     });
 
     if (!response.ok) {

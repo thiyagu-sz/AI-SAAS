@@ -849,6 +849,31 @@ Auth Failure      Return 401                  User re-login
 
 ---
 
+## Part E.4: Feature Engineering, Evaluation Focus & Constraints
+
+### Feature Engineering
+
+| Aspect | Traditional ML | Inference Systems | Input Data | Feature Source |
+|--------|---|---|---|---|
+| **Numerical vectors** | Raw text + constraints | Raw text + constraints | Structured data | Manual engineering |
+| **LLM semantic extraction** | Fixed features | Dynamic features | Unstructured data | LLM semantic extraction |
+
+### Evaluation Focus
+
+| Metric Type | Traditional ML | Inference Systems | Primary Metric | Secondary Metric |
+|---|---|---|---|---|
+| **Precision/recall** | Historical accuracy | Real-time accuracy | User experience | Loss metrics |
+| **System performance** | Model inference speed | End-to-end latency | Response time | Resource usage |
+
+### Constraints
+
+| Limitation | Traditional ML | Inference Systems | Key Restrictions | Optimization Focus |
+|---|---|---|---|---|
+| **Hardware capacity** | GPU memory | Cloud API limits | Model accuracy | Cost-latency balance |
+| **API/cloud policies** | Model serving | Rate limiting | Token limits | Model accuracy |
+
+---
+
 ## Part F: ML System vs Traditional ML
 
 **Why This is ML System Design (Not Just ML)**:

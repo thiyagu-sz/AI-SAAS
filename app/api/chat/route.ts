@@ -2,6 +2,15 @@ import { NextRequest } from 'next/server';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 
+// Rate limiting and retry logic
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 1000; // 1 second
+const MAX_RETRY_DELAY = 10000; // 10 seconds
+
+async function sleepMs(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function generateEmbedding(text: string): Promise<number[]> {
   // Use a simple text-based embedding if OpenAI key is not available
   // This is a fallback - for production, use proper embeddings
@@ -136,7 +145,6 @@ async function streamChatResponse(
   return new ReadableStream({
     async start(controller) {
       try {
-        // Use EXACT same method as test endpoint that works
         const apiKey = process.env.OPENROUTER_API_KEY?.trim();
         
         if (!apiKey) {
@@ -147,29 +155,33 @@ async function streamChatResponse(
           return;
         }
 
-        // Use EXACT same headers format as test endpoint
-        const headers = {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-          'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-          'X-Title': 'QuickNotes',
-        };
-        
-        console.log('🚀 Chat: Making OpenRouter request');
-        console.log('  - Model: tngtech/deepseek-r1t2-chimera:free');
-        console.log('  - Key length:', apiKey.length);
-        console.log('  - Key preview:', apiKey.substring(0, 15) + '...');
-        
-        // Make the streaming request
-        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            model: 'tngtech/deepseek-r1t2-chimera:free',
-            messages: [
-              {
-                role: 'system',
-                content: `You are an elite academic research assistant for QuickNotes. Create professional, publication-ready study notes.
+        let response: Response | null = null;
+        let lastError: any = null;
+        let retryDelay = INITIAL_RETRY_DELAY;
+
+        // Retry loop for handling rate limits and transient errors
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+          try {
+            const headers = {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${apiKey}`,
+              'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+              'X-Title': 'QuickNotes',
+            };
+            
+            console.log(`🚀 Chat: Making OpenRouter request (attempt ${attempt}/${MAX_RETRIES})`);
+            console.log('  - Model: tngtech/deepseek-r1t2-chimera:free');
+            
+            // Make the streaming request
+            response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({
+                model: 'tngtech/deepseek-r1t2-chimera:free',
+                messages: [
+                  {
+                    role: 'system',
+                    content: `You are an elite academic research assistant for QuickNotes. Create professional, publication-ready study notes.
 
 QuickNotes APP INFORMATION:
 - App Name: QuickNotes
@@ -209,48 +221,95 @@ REQUIRED MARKDOWN STRUCTURE:
 | :--- | :--- | :--- |
 | Data | ... | ... |
 `,
-              },
-              {
-                role: 'user',
-                content: context 
-                  ? `Context: ${context}\n\nTask: Create comprehensive study notes for: ${question}` 
-                  : `Task: Create comprehensive study notes for: ${question}`,
-              },
-            ],
-            stream: true,
-          }),
-        });
+                  },
+                  {
+                    role: 'user',
+                    content: context 
+                      ? `Context: ${context}\n\nTask: Create comprehensive study notes for: ${question}` 
+                      : `Task: Create comprehensive study notes for: ${question}`,
+                  },
+                ],
+                stream: true,
+              }),
+            });
 
-        console.log('📡 Response status:', response.status, response.statusText);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('❌ OpenRouter API error:', response.status);
-          console.error('Error response:', errorText.substring(0, 200));
-          
-          let errorMessage = 'Unknown error';
-          try {
-            const errorJson = JSON.parse(errorText);
-            errorMessage = errorJson.error?.message || errorJson.error || errorText;
-          } catch {
-            errorMessage = errorText.substring(0, 200);
-          }
-          
-          // Provide user-friendly error messages
-          let userFriendlyError = errorMessage;
-          if (response.status === 401) {
-            if (errorMessage.includes('User not found') || errorMessage.includes('Invalid API key')) {
-              userFriendlyError = 'Your OpenRouter API key is invalid or expired. Please check your API key at https://openrouter.ai/keys and update it in your .env.local file.';
-            } else {
-              userFriendlyError = `Authentication failed: ${errorMessage}. Please verify your OpenRouter API key is correct.`;
+            console.log('📡 Response status:', response.status, response.statusText);
+            
+            // Handle rate limiting with retry
+            if (response.status === 429) {
+              lastError = new Error('Rate limit exceeded');
+              const retryAfter = response.headers.get('retry-after');
+              const delayMs = retryAfter ? parseInt(retryAfter) * 1000 : retryDelay;
+              
+              if (attempt < MAX_RETRIES) {
+                console.warn(`⚠️ Rate limit hit (429). Waiting ${delayMs}ms before retry...`);
+                await sleepMs(delayMs);
+                retryDelay = Math.min(retryDelay * 2, MAX_RETRY_DELAY);
+                continue; // Retry
+              }
             }
-          } else if (response.status === 429) {
-            userFriendlyError = 'Rate limit exceeded. Please try again in a moment.';
-          } else if (response.status >= 500) {
-            userFriendlyError = 'OpenRouter API is currently unavailable. Please try again later.';
+
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.error('❌ OpenRouter API error:', response.status);
+              console.error('Error response:', errorText.substring(0, 200));
+              
+              let errorMessage = 'Unknown error';
+              try {
+                const errorJson = JSON.parse(errorText);
+                errorMessage = errorJson.error?.message || errorJson.error || errorText;
+              } catch {
+                errorMessage = errorText.substring(0, 200);
+              }
+              
+              lastError = new Error(`API error ${response.status}: ${errorMessage}`);
+              
+              // Don't retry on auth errors
+              if (response.status === 401) {
+                throw lastError;
+              }
+              
+              // Retry on 5xx errors
+              if (response.status >= 500 && attempt < MAX_RETRIES) {
+                console.warn(`⚠️ Server error ${response.status}. Retrying...`);
+                await sleepMs(retryDelay);
+                retryDelay = Math.min(retryDelay * 2, MAX_RETRY_DELAY);
+                continue;
+              }
+              
+              throw lastError;
+            }
+
+            // Success - break out of retry loop
+            break;
+          } catch (error) {
+            lastError = error;
+            if (attempt < MAX_RETRIES && !(`${error}`.includes('401'))) {
+              console.warn(`⚠️ Error on attempt ${attempt}/${MAX_RETRIES}. Retrying...`, error);
+              await sleepMs(retryDelay);
+              retryDelay = Math.min(retryDelay * 2, MAX_RETRY_DELAY);
+              continue;
+            }
+          }
+        }
+
+        if (!response || !response.ok) {
+          let userFriendlyError = 'Unknown error';
+          
+          if (lastError) {
+            const errorStr = lastError.toString();
+            if (errorStr.includes('429') || errorStr.includes('Rate limit')) {
+              userFriendlyError = 'Rate limit exceeded. Please wait a moment and try again.';
+            } else if (errorStr.includes('401')) {
+              userFriendlyError = 'Authentication failed. Please verify your OpenRouter API key.';
+            } else if (errorStr.includes('500')) {
+              userFriendlyError = 'OpenRouter API is temporarily unavailable. Please try again later.';
+            } else {
+              userFriendlyError = errorStr.substring(0, 200);
+            }
           }
           
-          const errorMsg = `Error (${response.status}): ${userFriendlyError}`;
+          const errorMsg = `Error: ${userFriendlyError}`;
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: errorMsg })}\n\n`));
           controller.close();
           return;
