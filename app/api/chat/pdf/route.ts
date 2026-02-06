@@ -1,5 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+export async function OPTIONS(request: NextRequest) {
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    },
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { html, filename } = await request.json();
@@ -28,13 +39,19 @@ export async function POST(request: NextRequest) {
 
       await browser.close();
 
+      // Create proper headers for PDF response
+      const headers = new Headers();
+      headers.set('Content-Type', 'application/pdf');
+      headers.set('Content-Disposition', `inline; filename="${filename || 'document.pdf'}"`);
+      headers.set('Content-Length', pdfBuffer.length.toString());
+      headers.set('Cache-Control', 'public, max-age=3600');
+      headers.set('Access-Control-Allow-Origin', '*');
+      headers.set('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+      headers.set('Access-Control-Allow-Headers', 'Content-Type');
+
       return new NextResponse(Buffer.from(pdfBuffer), {
         status: 200,
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="${filename || 'document.pdf'}"`,
-          'Content-Length': pdfBuffer.length.toString(),
-        },
+        headers: headers,
       });
     } catch (puppeteerError) {
       console.log('Puppeteer PDF generation failed, using text fallback:', puppeteerError);
@@ -53,13 +70,17 @@ export async function POST(request: NextRequest) {
 
     const textBuffer = Buffer.from(textContent, 'utf-8');
 
+    // Create proper headers for text fallback
+    const fallbackHeaders = new Headers();
+    fallbackHeaders.set('Content-Type', 'text/plain; charset=utf-8');
+    fallbackHeaders.set('Content-Disposition', `attachment; filename="${filename?.replace('.pdf', '.txt') || 'document.txt'}"`);
+    fallbackHeaders.set('Content-Length', textBuffer.length.toString());
+    fallbackHeaders.set('Cache-Control', 'public, max-age=3600');
+    fallbackHeaders.set('Access-Control-Allow-Origin', '*');
+
     return new NextResponse(textBuffer, {
       status: 200,
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Content-Disposition': `attachment; filename="${filename?.replace('.pdf', '.txt') || 'document.txt'}"`,
-        'Content-Length': textBuffer.length.toString(),
-      },
+      headers: fallbackHeaders,
     });
   } catch (error) {
     console.error('PDF/Text generation error:', error);

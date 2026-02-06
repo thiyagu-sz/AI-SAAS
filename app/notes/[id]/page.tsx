@@ -247,10 +247,27 @@ export default function NotesViewerPage() {
       });
 
       if (!response.ok) {
-        throw new Error(`Document generation failed: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Document generation failed: ${response.statusText} - ${errorData.error || ''}`);
+      }
+
+      // Verify we have a valid response
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/pdf')) {
+        throw new Error('Invalid response type: expected PDF, got ' + contentType);
       }
 
       const blob = await response.blob();
+      
+      // Verify blob is not empty and is valid PDF
+      if (blob.size === 0) {
+        throw new Error('PDF generation returned empty blob');
+      }
+
+      if (!blob.type.includes('pdf') && blob.type !== 'application/octet-stream') {
+        console.warn('Unexpected blob type:', blob.type);
+      }
+
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -259,13 +276,21 @@ export default function NotesViewerPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+
+      setStatusModal({
+        show: true,
+        type: 'success',
+        title: 'Export Successful',
+        message: `PDF exported as ${cleanTitle}.pdf`,
+      });
     } catch (error) {
       console.error('Export error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       setStatusModal({
         show: true,
         type: 'error',
         title: 'Export Failed',
-        message: 'Failed to export PDF. Please try again.',
+        message: errorMessage || 'Failed to export PDF. Please try again.',
       });
     } finally {
       setExporting(false);
