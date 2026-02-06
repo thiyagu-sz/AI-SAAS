@@ -217,9 +217,12 @@ REQUIRED MARKDOWN STRUCTURE:
 [Content...]
 
 ## Comparative Analysis
-| Aspect | A | B |
-| :--- | :--- | :--- |
-| Data | ... | ... |
+
+| Aspect | Column A | Column B |
+|--------|----------|----------|
+| Data | Details | Details |
+| Examples | Examples | Examples |
+| Usage | Usage info | Usage info |
 `,
                   },
                   {

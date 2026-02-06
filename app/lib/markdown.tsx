@@ -12,8 +12,8 @@ export function renderMarkdown(text: string): React.ReactNode {
   const flushParagraph = () => {
     if (currentParagraph.length > 0) {
       elements.push(
-        <p key={elements.length} className="mb-3 last:mb-0">
-          {currentParagraph.join(' ')}
+        <p key={elements.length} className="mb-4 last:mb-0 text-left leading-relaxed">
+          {formatInlineMarkdown(currentParagraph.join(' '))}
         </p>
       );
       currentParagraph = [];
@@ -24,15 +24,15 @@ export function renderMarkdown(text: string): React.ReactNode {
     if (listItems.length > 0) {
       const ListComponent = listType === 'ol' ? 'ol' : 'ul';
       const listClassName = listType === 'ol' 
-        ? 'list-decimal list-inside mb-3 space-y-1' 
-        : 'list-disc list-inside mb-3 space-y-1';
+        ? 'list-decimal list-outside mb-4 space-y-2 text-left pl-6' 
+        : 'list-disc list-outside mb-4 space-y-2 text-left pl-6';
       
       elements.push(
         React.createElement(
           ListComponent,
           { key: elements.length, className: listClassName },
           listItems.map((item, idx) => (
-            <li key={idx} className="ml-4">{formatInlineMarkdown(item)}</li>
+            <li key={idx} className="text-left leading-relaxed">{formatInlineMarkdown(item)}</li>
           ))
         )
       );
@@ -49,7 +49,7 @@ export function renderMarkdown(text: string): React.ReactNode {
       flushList();
       flushParagraph();
       elements.push(
-        <h3 key={elements.length} className="text-base font-bold mt-4 mb-2 text-gray-900 !text-base">
+        <h3 key={elements.length} className="text-base font-bold mt-6 mb-3 text-gray-900 text-left leading-tight">
           {formatInlineMarkdown(trimmed.slice(4))}
         </h3>
       );
@@ -59,7 +59,7 @@ export function renderMarkdown(text: string): React.ReactNode {
       flushList();
       flushParagraph();
       elements.push(
-        <h2 key={elements.length} className="text-lg font-bold mt-4 mb-2 text-gray-900 !text-lg">
+        <h2 key={elements.length} className="text-lg font-bold mt-6 mb-3 text-gray-900 text-left leading-tight">
           {formatInlineMarkdown(trimmed.slice(3))}
         </h2>
       );
@@ -69,9 +69,74 @@ export function renderMarkdown(text: string): React.ReactNode {
       flushList();
       flushParagraph();
       elements.push(
-        <h1 key={elements.length} className="text-xl font-bold mt-4 mb-3 text-gray-900 !text-xl">
+        <h1 key={elements.length} className="text-xl font-bold mt-6 mb-4 text-gray-900 text-left leading-tight">
           {formatInlineMarkdown(trimmed.slice(2))}
         </h1>
+      );
+      return;
+    }
+
+    // MCQ Options (A., B., C., D.)
+    if (trimmed.match(/^[A-D]\.\s+/)) {
+      flushParagraph();
+      flushList();
+      elements.push(
+        <div key={elements.length} className="mb-2 pl-4 text-left leading-relaxed">
+          <span className="font-semibold text-gray-800">{trimmed.slice(0, 2)}</span>
+          <span className="ml-2">{formatInlineMarkdown(trimmed.slice(3))}</span>
+        </div>
+      );
+      return;
+    }
+
+    // MCQ Question numbering (Q1., Q2., etc.)
+    if (trimmed.match(/^Q\d+\.\s+/)) {
+      flushParagraph();
+      flushList();
+      elements.push(
+        <div key={elements.length} className="mt-6 mb-4 text-left">
+          <div className="font-semibold text-gray-900 text-base leading-relaxed">
+            {formatInlineMarkdown(trimmed)}
+          </div>
+        </div>
+      );
+      return;
+    }
+
+    // Correct Answer line
+    if (trimmed.match(/^Correct Answer:\s+/)) {
+      flushParagraph();
+      flushList();
+      elements.push(
+        <div key={elements.length} className="mt-4 mb-2 text-left">
+          <span className="font-semibold text-green-700 bg-green-50 px-2 py-1 rounded text-sm">
+            {trimmed}
+          </span>
+        </div>
+      );
+      return;
+    }
+
+    // Explanation line
+    if (trimmed.match(/^Explanation:\s+/)) {
+      flushParagraph();
+      flushList();
+      elements.push(
+        <div key={elements.length} className="mb-4 text-left">
+          <div className="text-gray-600 italic text-sm leading-relaxed">
+            {formatInlineMarkdown(trimmed)}
+          </div>
+        </div>
+      );
+      return;
+    }
+
+    // Horizontal rule for MCQ separation
+    if (trimmed === '---') {
+      flushParagraph();
+      flushList();
+      elements.push(
+        <hr key={elements.length} className="my-6 border-t border-gray-200" />
       );
       return;
     }
@@ -124,7 +189,7 @@ function formatInlineMarkdown(text: string): React.ReactNode {
     if (match.index > currentIndex) {
       parts.push(text.slice(currentIndex, match.index));
     }
-    parts.push(<strong key={match.index} className="font-semibold">{match[1]}</strong>);
+    parts.push(<strong key={match.index} className="font-semibold text-gray-900">{match[1]}</strong>);
     currentIndex = match.index + match[0].length;
   }
 

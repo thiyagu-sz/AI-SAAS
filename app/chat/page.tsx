@@ -27,7 +27,7 @@ interface Message {
   timestamp: Date;
 }
 
-type FormatType = 'key-points' | 'main-concepts' | 'exam-points' | 'short-notes' | 'speech-notes' | 'presentation-notes' | 'summary';
+type FormatType = 'key-points' | 'main-concepts' | 'exam-points' | 'short-notes' | 'speech-notes' | 'presentation-notes' | 'summary' | 'mcqs';
 
 function ChatContent() {
   const router = useRouter();
@@ -42,6 +42,7 @@ function ChatContent() {
   const [selectedFormat, setSelectedFormat] = useState<FormatType>('key-points');
   const [wordCount, setWordCount] = useState<number>(100);
   const [customWordCount, setCustomWordCount] = useState<string>('');
+  const [questionCount, setQuestionCount] = useState<number>(5);
   const [showToast, setShowToast] = useState({ show: false, message: '' });
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -514,6 +515,64 @@ REQUIREMENTS:
 
 Content to process:
 ${userInput}`,
+      'mcqs': `Generate Multiple Choice Questions (MCQs) strictly based on the provided study material.
+
+REQUIREMENTS:
+- Do NOT introduce information outside the given content
+- Questions must be exam-oriented and concept-focused
+- Difficulty level: Medium (college / university exams)
+- Avoid ambiguous or opinion-based questions
+- Each question must have exactly 4 options (A–D)
+- Use clean, vertical layout
+- Clearly mark the correct answer
+- Provide a brief explanation
+
+FORMAT:
+## Multiple Choice Questions (MCQs)
+
+Q1. Question text here?
+A. Option A
+B. Option B
+C. Option C
+D. Option D
+
+Correct Answer: A
+Explanation: Brief explanation of why this is correct.
+
+---
+
+Q2. Next question?
+A. Option A
+B. Option B
+C. Option C
+D. Option D
+
+Correct Answer: B
+Explanation: Brief explanation here.
+
+TABLE FORMATTING (if needed):
+Use this exact format for tables:
+| Header 1 | Header 2 | Header 3 |
+|----------|----------|----------|
+| Data | Data | Data |
+| Data | Data | Data |
+
+DO NOT USE:
+- Extra pipes outside table boundaries
+- Colons or special alignment characters
+- Unequal spacing between rows
+- Messy alignment marks like "| :--- |"
+
+Constraints:
+- Generate exactly ${wordCount} MCQs
+- Do not repeat questions
+- Keep explanations concise
+- Use Q1, Q2, Q3... numbering
+- Use A. B. C. D. format for options
+- No messy characters or extra formatting
+
+Content to process:
+${userInput}`,
     };
 
     return formatPrompts[format];
@@ -541,7 +600,8 @@ ${userInput}`,
 
     // Apply format if format options are shown and user wants formatted output
     if (showFormatOptions && selectedFormat) {
-      processedInput = generateFormatPrompt(selectedFormat, wordCount, userInput);
+      const countToUse = selectedFormat === 'mcqs' ? questionCount : wordCount;
+      processedInput = generateFormatPrompt(selectedFormat, countToUse, userInput);
     }
 
     const userMessage: Message = {
@@ -1069,6 +1129,7 @@ ${userInput}`,
     { value: 'speech-notes', label: 'Speech Notes' },
     { value: 'presentation-notes', label: 'Presentation Notes' },
     { value: 'summary', label: 'Summary' },
+    { value: 'mcqs', label: 'MCQs' },
   ];
 
   if (loading) {
@@ -1129,9 +1190,10 @@ ${userInput}`,
 
         {/* Messages Area */}
         <main className="flex-1 overflow-y-auto bg-white scroll-smooth" ref={scrollAreaRef}>
-          <div className="max-w-4xl mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 pb-24 sm:pb-28">
+          <div className="pb-24 sm:pb-28">
             {messages.length === 0 ? (
-              <div className="text-center py-8 sm:py-12 px-3">
+              <div className="w-full py-8 sm:py-12 bg-white">
+                <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-6 text-center">
                 <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
                   <MessageSquare className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
                 </div>
@@ -1140,14 +1202,15 @@ ${userInput}`,
                   Paste your study content into the text field below, then select your desired output format.
                 </p>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 max-w-sm mx-auto text-left">
-                  <p className="text-xs font-semibold text-blue-900 mb-2">✨ How to use:</p>
-                  <ul className="text-xs text-blue-800 space-y-1">
-                    <li>📋 Paste your content in the chat below</li>
-                    <li>🎯 Select format: Key Points, Summary, Exam Notes, etc.</li>
-                    <li>📊 Set word count for your output</li>
-                    <li>💾 Export as PDF or download</li>
+                  <p className="text-xs font-semibold text-blue-900 mb-2 text-left">✨ How to use:</p>
+                  <ul className="text-xs text-blue-800 space-y-1 text-left">
+                    <li className="text-left">📋 Paste your content in the chat below</li>
+                    <li className="text-left">🎯 Select format: Key Points, Summary, Exam Notes, etc.</li>
+                    <li className="text-left">📊 Set word count for your output</li>
+                    <li className="text-left">💾 Export as PDF or download</li>
                   </ul>
                 </div>
+              </div>
               </div>
             ) : (
               <>
@@ -1158,51 +1221,43 @@ ${userInput}`,
                   const isLastAssistantMessage = message.role === 'assistant' && index === lastAssistantIndex;
 
                   return (
-                    <div key={message.id} className={`flex mb-3 sm:mb-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`flex gap-1.5 sm:gap-3 max-w-[95%] sm:max-w-[90%] md:max-w-[80%] lg:max-w-[70%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                        <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                          message.role === 'user' 
-                            ? 'bg-blue-600 text-white' 
-                            : 'bg-gray-800 text-white'
-                        }`}>
-                          {message.role === 'user' ? (
-                            <span className="text-xs font-medium">
-                              {user?.user_metadata?.full_name?.[0] || user?.email?.[0] || 'U'}
-                            </span>
-                          ) : (
-                            <span className="text-xs">AI</span>
-                          )}
-                        </div>
-                        <div className={`flex-1 min-w-0 ${message.role === 'user' ? 'flex flex-col items-end' : 'flex flex-col items-start'}`}>
-                          <div className={`rounded-2xl px-3 sm:px-4 py-2.5 sm:py-3 ${
-                            message.role === 'user'
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-100 text-gray-900'
+                    <div key={message.id} className={`w-full py-3 sm:py-4 ${
+                      message.role === 'user' ? 'bg-white' : 'bg-gray-50'
+                    } border-b border-gray-100 last:border-b-0`}>
+                      <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-6">
+                        <div className="flex gap-3 sm:gap-4">
+                          <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            message.role === 'user' 
+                              ? 'bg-blue-600 text-white' 
+                              : 'bg-gray-800 text-white'
                           }`}>
-                            <div className={`leading-relaxed ${
-                              message.role === 'user' 
-                                ? 'text-white text-sm' 
-                                : 'text-gray-900 text-sm max-w-none'
-                            }`}>
-                              {message.role === 'assistant' ? renderMarkdown(message.content) : message.content}
+                            {message.role === 'user' ? (
+                              <span className="text-xs font-medium">
+                                {user?.user_metadata?.full_name?.[0] || user?.email?.[0] || 'U'}
+                              </span>
+                            ) : (
+                              <span className="text-xs">AI</span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-gray-900 leading-relaxed">
+                              {message.role === 'assistant' ? renderMarkdown(message.content) : (
+                                <div className="whitespace-pre-wrap text-left">
+                                  {message.content}
+                                </div>
+                              )}
                             </div>
                             {message.sources && message.sources.length > 0 && (
-                              <div className={`mt-4 pt-3 ${message.role === 'user' ? 'border-t border-white/30' : 'border-t border-gray-300'}`}>
-                                <p className={`text-xs font-semibold uppercase tracking-wider mb-2 ${
-                                  message.role === 'user' ? 'text-white/80' : 'text-gray-600'
-                                }`}>Sources</p>
+                              <div className="mt-4 pt-3 border-t border-gray-200">
+                                <p className="text-xs font-semibold uppercase tracking-wider mb-2 text-gray-600">Sources</p>
                                 <div className="flex flex-wrap gap-2">
                                   {message.sources.map((source, idx) => (
                                     <span
                                       key={idx}
-                                      className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${
-                                        message.role === 'user' 
-                                          ? 'bg-white/20 text-white' 
-                                          : 'bg-white/50 text-gray-700'
-                                      }`}
+                                      className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs bg-gray-100 text-gray-700"
                                     >
                                       {source.name}
-                                      {source.page && <span className={message.role === 'user' ? 'text-white/70' : 'text-gray-500'}>p. {source.page}</span>}
+                                      {source.page && <span className="text-gray-500">p. {source.page}</span>}
                                     </span>
                                   ))}
                                 </div>
@@ -1210,7 +1265,7 @@ ${userInput}`,
                             )}
                             {/* Export buttons only on the LAST assistant message */}
                             {isLastAssistantMessage && message.content && message.content.trim().length > 0 && (
-                              <div className="mt-4 pt-3 border-t border-gray-300 flex flex-col sm:flex-row gap-2">
+                              <div className="mt-4 pt-3 border-t border-gray-200 flex flex-col sm:flex-row gap-2">
                                 <button
                                   type="button"
                                   onClick={(e) => {
@@ -1274,15 +1329,17 @@ ${userInput}`,
                   );
                 })}
                 {isLoading && (
-                  <div className="flex mb-4 justify-start">
-                    <div className="flex gap-3 max-w-[75%]">
-                      <div className="w-8 h-8 rounded-full bg-gray-800 text-white flex items-center justify-center flex-shrink-0">
-                        <span className="text-xs">AI</span>
-                      </div>
-                      <div className="flex-1 bg-gray-100 rounded-2xl px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <Loader2 className="w-4 h-4 animate-spin text-gray-600" />
-                          <span className="text-sm text-gray-600">AI is thinking…</span>
+                  <div className="w-full py-3 sm:py-4 bg-gray-50 border-b border-gray-100">
+                    <div className="max-w-4xl mx-auto px-3 sm:px-4 lg:px-6">
+                      <div className="flex gap-3 sm:gap-4">
+                        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-800 text-white flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs">AI</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 text-gray-600">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span className="text-sm">AI is thinking…</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1325,38 +1382,79 @@ ${userInput}`,
                 ))}
               </div>
               <div className="flex flex-col gap-2 sm:gap-4">
-                <label className="text-xs sm:text-sm text-gray-700 font-medium">Word count:</label>
-                <div className="flex flex-wrap gap-2">
-                  {[50, 100, 200].map((count) => (
-                    <button
-                      key={count}
-                      onClick={() => {
-                        setWordCount(count);
-                        setCustomWordCount('');
-                      }}
-                      className={`px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg border transition-colors touch-target ${
-                        wordCount === count && !customWordCount
-                          ? 'bg-blue-50 border-blue-500 text-blue-700 font-medium'
-                          : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 active:bg-gray-100'
-                      }`}
-                    >
-                      {count}
-                    </button>
-                  ))}
-                  <input
-                    type="number"
-                    placeholder="Custom"
-                    value={customWordCount}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setCustomWordCount(val);
-                      if (val) {
-                        setWordCount(parseInt(val) || 100);
-                      }
-                    }}
-                    className="w-18 sm:w-20 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  />
-                </div>
+                {selectedFormat === 'mcqs' ? (
+                  <>
+                    <label className="text-xs sm:text-sm text-gray-700 font-medium">Number of questions:</label>
+                    <div className="flex flex-wrap gap-2">
+                      {[5, 10, 20].map((count) => (
+                        <button
+                          key={count}
+                          onClick={() => {
+                            setQuestionCount(count);
+                            setWordCount(count);
+                          }}
+                          className={`px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg border transition-colors touch-target ${
+                            questionCount === count
+                              ? 'bg-blue-50 border-blue-500 text-blue-700 font-medium'
+                              : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 active:bg-gray-100'
+                          }`}
+                        >
+                          {count}
+                        </button>
+                      ))}
+                      <input
+                        type="number"
+                        placeholder="Custom"
+                        value={customWordCount}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCustomWordCount(val);
+                          if (val) {
+                            const numVal = parseInt(val) || 5;
+                            setQuestionCount(numVal);
+                            setWordCount(numVal);
+                          }
+                        }}
+                        className="w-18 sm:w-20 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <label className="text-xs sm:text-sm text-gray-700 font-medium">Word count:</label>
+                    <div className="flex flex-wrap gap-2">
+                      {[50, 100, 200].map((count) => (
+                        <button
+                          key={count}
+                          onClick={() => {
+                            setWordCount(count);
+                            setCustomWordCount('');
+                          }}
+                          className={`px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg border transition-colors touch-target ${
+                            wordCount === count && !customWordCount
+                              ? 'bg-blue-50 border-blue-500 text-blue-700 font-medium'
+                              : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 active:bg-gray-100'
+                          }`}
+                        >
+                          {count}
+                        </button>
+                      ))}
+                      <input
+                        type="number"
+                        placeholder="Custom"
+                        value={customWordCount}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCustomWordCount(val);
+                          if (val) {
+                            setWordCount(parseInt(val) || 100);
+                          }
+                        }}
+                        className="w-18 sm:w-20 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
