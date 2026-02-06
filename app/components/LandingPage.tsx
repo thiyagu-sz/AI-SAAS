@@ -51,6 +51,15 @@ export default function LandingPage() {
           <div className="absolute top-[20%] -right-[5%] w-[30%] h-[30%] bg-indigo-200/20 rounded-full blur-3xl"></div>
         </div>
         <div className="max-w-4xl text-center flex flex-col gap-6 items-center z-10">
+          {/* QuickNotes Hero Logo */}
+          <div className="flex items-center justify-center mb-4">
+            <img 
+              src="/applogo.png" 
+              alt="QuickNotes Logo" 
+              className="h-16 md:h-20 lg:h-24 w-auto object-contain drop-shadow-lg"
+            />
+          </div>
+          
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-blue-100 shadow-sm mb-2">
             <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse"></span>
             <span className="text-xs font-semibold text-primary uppercase tracking-wide">Powered by OpenRouter AI Models</span>

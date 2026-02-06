@@ -6,7 +6,7 @@ import { getSupabaseClient } from '@/app/lib/supabase';
 import Sidebar from '@/app/components/Sidebar';
 import FeedbackForm from '@/app/components/FeedbackForm';
 import { renderMarkdown } from '@/app/lib/markdown';
-import { generateProfessionalHTML } from '@/app/lib/pdfGenerator';
+import { generateClientPDF } from '@/app/lib/clientPdfGenerator';
 import { 
   MessageSquare,
   Send,
@@ -1033,43 +1033,59 @@ ${userInput}`,
       const cleanTitle = title.replace(/[^a-z0-9]/gi, '_');
 
       if (type === 'pdf') {
-        const htmlDocument = generateProfessionalHTML(messageContent, title);
         showToastMessage('Generating PDF...');
         
         try {
+          // Try server-side generation first
           const response = await fetch('/api/chat/pdf', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              html: htmlDocument,
+              markdown: messageContent,
+              title: title,
               filename: `${cleanTitle}.pdf`,
             }),
           });
 
-          if (!response.ok) {
-            throw new Error(`Document generation failed: ${response.statusText}`);
-          }
-
-          const blob = await response.blob();
-          if (blob.size === 0) {
-            throw new Error('Generated PDF is empty');
+          if (response.ok) {
+            const blob = await response.blob();
+            if (blob.size > 0) {
+              downloadFile(blob, `${cleanTitle}.pdf`);
+              showToastMessage('PDF downloaded successfully!');
+              return;
+            }
           }
           
-          downloadFile(blob, `${cleanTitle}.pdf`);
-          showToastMessage('PDF downloaded successfully!');
-        } catch (pdfError) {
-          console.error('PDF export error:', pdfError);
-          showToastMessage('Trying text file export...');
+          throw new Error('Server-side PDF generation failed');
+        } catch (serverError) {
+          console.warn('Server-side PDF failed, using client-side generation:', serverError);
+          showToastMessage('Generating PDF with backup method...');
           
           try {
-            const textBlob = new Blob([messageContent], { type: 'text/plain; charset=utf-8' });
-            downloadFile(textBlob, `${cleanTitle}.txt`);
-            showToastMessage('Downloaded as text file');
-          } catch (fallbackError) {
-            console.error('Fallback export error:', fallbackError);
-            showToastMessage('Could not export. Please copy text manually.');
+            // Use client-side jsPDF as fallback
+            const pdfBlob = generateClientPDF({
+              title: title,
+              content: messageContent,
+              author: 'QuickNotes',
+              subject: 'Study Notes'
+            });
+            
+            downloadFile(pdfBlob, `${cleanTitle}.pdf`);
+            showToastMessage('PDF generated successfully!');
+          } catch (clientError) {
+            console.error('Client-side PDF generation failed:', clientError);
+            showToastMessage('Trying text file export...');
+            
+            try {
+              const textBlob = new Blob([messageContent], { type: 'text/plain; charset=utf-8' });
+              downloadFile(textBlob, `${cleanTitle}.txt`);
+              showToastMessage('Downloaded as text file');
+            } catch (fallbackError) {
+              console.error('All export methods failed:', fallbackError);
+              showToastMessage('Could not export. Please copy text manually.');
+            }
           }
         }
       } else if (type === 'doc') {

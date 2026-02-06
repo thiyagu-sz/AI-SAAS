@@ -8,6 +8,9 @@ export function renderMarkdown(text: string): React.ReactNode {
   let inList = false;
   let listItems: string[] = [];
   let listType: 'ul' | 'ol' = 'ul';
+  let inTable = false;
+  let tableRows: string[][] = [];
+  let tableHeaders: string[] = [];
 
   const flushParagraph = () => {
     if (currentParagraph.length > 0) {
@@ -41,12 +44,89 @@ export function renderMarkdown(text: string): React.ReactNode {
     }
   };
 
+  const flushTable = () => {
+    if (tableRows.length > 0) {
+      elements.push(
+        <div key={elements.length} className="overflow-x-auto mb-4">
+          <table className="min-w-full border-collapse border border-gray-300 text-sm">
+            {tableHeaders.length > 0 && (
+              <thead>
+                <tr className="bg-gray-50">
+                  {tableHeaders.map((header, idx) => (
+                    <th 
+                      key={idx} 
+                      className="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-900"
+                    >
+                      {formatInlineMarkdown(header.trim())}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+            )}
+            <tbody>
+              {tableRows.map((row, rowIdx) => (
+                <tr key={rowIdx} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-25'}>
+                  {row.map((cell, cellIdx) => (
+                    <td 
+                      key={cellIdx} 
+                      className="border border-gray-300 px-3 py-2 text-left text-gray-700"
+                    >
+                      {formatInlineMarkdown(cell.trim())}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+      tableRows = [];
+      tableHeaders = [];
+      inTable = false;
+    }
+  };
+
   lines.forEach((line, index) => {
     const trimmed = line.trim();
+    
+    // Table detection (pipe-separated values)
+    if (trimmed.includes('|') && trimmed.split('|').length >= 2) {
+      flushParagraph();
+      flushList();
+      
+      let cells = trimmed.split('|');
+      
+      // Remove leading/trailing empty cells (from leading/trailing pipes)
+      if (cells[0].trim() === '') cells.shift();
+      if (cells[cells.length - 1].trim() === '') cells.pop();
+      
+      cells = cells.map(cell => cell.trim());
+      
+      // Check if this is a separator row (contains only dashes, spaces, colons, and pipes)
+      const isSeparatorRow = /^[\s\|\-:]+$/.test(trimmed);
+      
+      if (!isSeparatorRow && cells.length > 0) {
+        if (!inTable) {
+          inTable = true;
+          tableHeaders = cells;
+        } else {
+          // Pad cells to match header count for consistent table structure
+          while (cells.length < tableHeaders.length) {
+            cells.push('');
+          }
+          tableRows.push(cells.slice(0, tableHeaders.length));
+        }
+      }
+      return;
+    } else if (inTable) {
+      // End of table
+      flushTable();
+    }
     
     // Headings
     if (trimmed.startsWith('### ')) {
       flushList();
+      flushTable();
       flushParagraph();
       elements.push(
         <h3 key={elements.length} className="text-base font-bold mt-6 mb-3 text-gray-900 text-left leading-tight">
@@ -57,6 +137,7 @@ export function renderMarkdown(text: string): React.ReactNode {
     }
     if (trimmed.startsWith('## ')) {
       flushList();
+      flushTable();
       flushParagraph();
       elements.push(
         <h2 key={elements.length} className="text-lg font-bold mt-6 mb-3 text-gray-900 text-left leading-tight">
@@ -67,6 +148,7 @@ export function renderMarkdown(text: string): React.ReactNode {
     }
     if (trimmed.startsWith('# ')) {
       flushList();
+      flushTable();
       flushParagraph();
       elements.push(
         <h1 key={elements.length} className="text-xl font-bold mt-6 mb-4 text-gray-900 text-left leading-tight">
@@ -79,6 +161,7 @@ export function renderMarkdown(text: string): React.ReactNode {
     // MCQ Options (A., B., C., D.)
     if (trimmed.match(/^[A-D]\.\s+/)) {
       flushParagraph();
+      flushTable();
       flushList();
       elements.push(
         <div key={elements.length} className="mb-2 pl-4 text-left leading-relaxed">
@@ -92,6 +175,7 @@ export function renderMarkdown(text: string): React.ReactNode {
     // MCQ Question numbering (Q1., Q2., etc.)
     if (trimmed.match(/^Q\d+\.\s+/)) {
       flushParagraph();
+      flushTable();
       flushList();
       elements.push(
         <div key={elements.length} className="mt-6 mb-4 text-left">
@@ -106,6 +190,7 @@ export function renderMarkdown(text: string): React.ReactNode {
     // Correct Answer line
     if (trimmed.match(/^Correct Answer:\s+/)) {
       flushParagraph();
+      flushTable();
       flushList();
       elements.push(
         <div key={elements.length} className="mt-4 mb-2 text-left">
@@ -120,6 +205,7 @@ export function renderMarkdown(text: string): React.ReactNode {
     // Explanation line
     if (trimmed.match(/^Explanation:\s+/)) {
       flushParagraph();
+      flushTable();
       flushList();
       elements.push(
         <div key={elements.length} className="mb-4 text-left">
@@ -134,6 +220,7 @@ export function renderMarkdown(text: string): React.ReactNode {
     // Horizontal rule for MCQ separation
     if (trimmed === '---') {
       flushParagraph();
+      flushTable();
       flushList();
       elements.push(
         <hr key={elements.length} className="my-6 border-t border-gray-200" />
@@ -144,6 +231,7 @@ export function renderMarkdown(text: string): React.ReactNode {
     // Lists
     if (trimmed.match(/^[-*]\s+/)) {
       flushParagraph();
+      flushTable();
       if (!inList) {
         inList = true;
         listType = 'ul';
@@ -153,6 +241,7 @@ export function renderMarkdown(text: string): React.ReactNode {
     }
     if (trimmed.match(/^\d+\.\s+/)) {
       flushParagraph();
+      flushTable();
       if (!inList || listType === 'ul') {
         if (inList) flushList();
         inList = true;
@@ -165,14 +254,17 @@ export function renderMarkdown(text: string): React.ReactNode {
     // Regular paragraph
     if (trimmed.length > 0) {
       flushList();
+      flushTable();
       currentParagraph.push(trimmed);
     } else {
       flushList();
+      flushTable();
       flushParagraph();
     }
   });
 
   flushList();
+  flushTable();
   flushParagraph();
 
   return elements.length > 0 ? <>{elements}</> : <p>{text}</p>;
