@@ -336,17 +336,32 @@ function ChatContent() {
   const isValidContent = (text: string): boolean => {
     if (!text || text.trim().length < 5) return false;
     
-    const words = text.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+    const trimmedText = text.trim();
+    
+    // More lenient validation for structured content
+    const words = trimmedText.toLowerCase().split(/\s+/).filter(w => w.length > 0);
     if (words.length < 1) return false;
     
-    const hasRepeatingChars = /(.)\1{5,}/.test(text);
-    const hasVowels = /[aeiou]/i.test(text);
-    const avgWordLength = words.reduce((sum, word) => sum + word.length, 0) / words.length;
-    const hasAlphabeticChars = /[a-z]/i.test(text);
+    // Check for alphabetic content (including tables, diagrams, etc.)
+    const hasAlphabeticChars = /[a-z]/i.test(trimmedText);
     
-    const isGibberish = hasRepeatingChars || !hasVowels || (avgWordLength > 15 && !hasAlphabeticChars);
+    // Check for excessive repeating characters (more than 10 in a row)
+    const hasExcessiveRepeatingChars = /(.)\1{10,}/.test(trimmedText);
     
-    return !isGibberish && hasAlphabeticChars;
+    // Check if content is mostly symbols/special chars (less than 10% alphabetic)
+    const alphabeticCount = (trimmedText.match(/[a-z]/gi) || []).length;
+    const totalChars = trimmedText.length;
+    const alphabeticRatio = alphabeticCount / totalChars;
+    
+    // Accept content that:
+    // 1. Has some alphabetic characters
+    // 2. Doesn't have excessive repeating characters
+    // 3. Has at least 10% alphabetic content (allows for tables, code, diagrams)
+    const isValid = hasAlphabeticChars && 
+                   !hasExcessiveRepeatingChars && 
+                   alphabeticRatio >= 0.1;
+    
+    return isValid;
   };
 
   const showAboutMessage = () => {
