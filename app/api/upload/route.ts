@@ -332,7 +332,7 @@ async function generateEmbedding(text: string): Promise<number[]> {
   return data.data[0].embedding;
 }
 
-type FormatType = 'key-points' | 'main-concepts' | 'exam-points' | 'short-notes' | 'speech-notes' | 'presentation-notes' | 'summary' | 'mcqs';
+type FormatType = 'key-points' | 'main-concepts' | 'exam-points' | 'short-notes' | 'speech-notes' | 'presentation-notes' | 'summary' | 'mcqs' | 'quick-test';
 
 // Rate limiting and retry logic
 const MAX_RETRIES = 3;
@@ -599,6 +599,10 @@ CONSTRAINTS:
 - Use A. B. C. D. format for options
 - CLEAN formatting: no extra characters or symbols`,
       userPromptPrefix: 'Generate exam-focused MCQs from this study material:'
+    },
+    'quick-test': {
+      systemPrompt: 'Quick Test mode - handled separately',
+      userPromptPrefix: 'Quick Test mode - handled separately'
     },
   };
 

@@ -7,6 +7,7 @@ import Sidebar from '@/app/components/Sidebar';
 import FeedbackForm from '@/app/components/FeedbackForm';
 import { renderMarkdown } from '@/app/lib/markdown';
 import { generateClientPDF } from '@/app/lib/clientPdfGenerator';
+import { copyToClipboard, extractTextFromMarkdown } from '@/app/lib/clipboard';
 import { 
   MessageSquare,
   Send,
@@ -17,6 +18,7 @@ import {
   File,
   X,
   Check,
+  Copy,
 } from 'lucide-react';
 
 interface Message {
@@ -27,7 +29,7 @@ interface Message {
   timestamp: Date;
 }
 
-type FormatType = 'key-points' | 'main-concepts' | 'exam-points' | 'short-notes' | 'speech-notes' | 'presentation-notes' | 'summary' | 'mcqs';
+type FormatType = 'key-points' | 'main-concepts' | 'exam-points' | 'short-notes' | 'speech-notes' | 'presentation-notes' | 'summary' | 'mcqs' | 'quick-test';
 
 function ChatContent() {
   const router = useRouter();
@@ -46,12 +48,20 @@ function ChatContent() {
   const [showToast, setShowToast] = useState({ show: false, message: '' });
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [isCopying, setIsCopying] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [viewportHeight, setViewportHeight] = useState('100dvh');
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [chatHistory, setChatHistory] = useState<Array<{ id: string; title: string; created_at: string }>>([]);
   const [expandedHistoryId, setExpandedHistoryId] = useState<string | null>(null);
   const [expandedHistoryMessages, setExpandedHistoryMessages] = useState<Message[]>([]);
+  const [showQuickTestDifficulty, setShowQuickTestDifficulty] = useState(false);
+  const [quickTestDifficulty, setQuickTestDifficulty] = useState<'easy' | 'medium' | 'hard' | null>(null);
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+  const [currentQuiz, setCurrentQuiz] = useState<any>(null);
+  const [userAnswers, setUserAnswers] = useState<{[key: number]: number}>({});
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
+  const [quizResults, setQuizResults] = useState<{score: number, total: number, feedback: string} | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -241,6 +251,29 @@ function ChatContent() {
     }
   }, [messages]);
 
+  // Ensure scrolling works properly when quiz interface is shown/hidden
+  useEffect(() => {
+    if (currentQuiz && !isGeneratingQuiz) {
+      // Allow time for UI to render then scroll to quiz
+      setTimeout(() => {
+        const quizElement = document.querySelector('[data-quiz-container]');
+        if (quizElement) {
+          quizElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 200);
+    }
+  }, [currentQuiz, isGeneratingQuiz]);
+
+  // Reset scroll position when quiz is reset
+  useEffect(() => {
+    if (!currentQuiz && !showQuickTestDifficulty && !isGeneratingQuiz) {
+      // Scroll to bottom when quiz is closed
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  }, [currentQuiz, showQuickTestDifficulty, isGeneratingQuiz]);
+
   // Restore draft from localStorage after auth/checks complete — only when there's no conversation loaded
   // Use user-specific key for isolation between users
   useEffect(() => {
@@ -400,11 +433,11 @@ QuickNotes is your personal study assistant that transforms any content into org
 - Or copy the generated text directly
 
 ## Tips:
-✅ Paste full paragraphs or entire documents
-✅ Longer content produces better formatted notes
-✅ Experiment with different formats
-✅ Adjust word count based on your needs
-✅ All your notes are automatically saved
+ Paste full paragraphs or entire documents
+ Longer content produces better formatted notes
+ Experiment with different formats
+Adjust word count based on your needs
+All your notes are automatically saved
 
 ---
 
@@ -573,6 +606,7 @@ Constraints:
 
 Content to process:
 ${userInput}`,
+      'quick-test': `Quick Test mode - handled separately`, // Placeholder as Quick Test has its own flow
     };
 
     return formatPrompts[format];
@@ -597,6 +631,15 @@ ${userInput}`,
     console.log('Content validation passed');
 
     let processedInput = userInput;
+
+    // Handle Quick Test selection
+    if (showFormatOptions && selectedFormat === 'quick-test') {
+      setShowQuickTestDifficulty(true);
+      setInput('');
+      setShowFormatOptions(false);
+      setIsLoading(false);
+      return;
+    }
 
     // Apply format if format options are shown and user wants formatted output
     if (showFormatOptions && selectedFormat) {
@@ -1129,6 +1172,523 @@ ${userInput}`,
     }
   }, [user, messages, currentConversationId, isExporting]);
 
+  const handleCopy = useCallback(async (messageContent: string) => {
+    if (!messageContent || messageContent.trim().length === 0) {
+      showToastMessage('Nothing to copy');
+      return;
+    }
+
+    if (isCopying) return;
+    setIsCopying(true);
+
+    try {
+      // Extract plain text from markdown while preserving structure
+      const plainText = extractTextFromMarkdown(messageContent);
+      const result = await copyToClipboard(plainText);
+      
+      showToastMessage(result.message);
+    } catch (error) {
+      console.error('Copy error:', error);
+      showToastMessage('Unable to copy right now. Please try again.');
+    } finally {
+      setIsCopying(false);
+    }
+  }, [isCopying]);
+
+  const handleQuickTestDifficulty = async (difficulty: 'easy' | 'medium' | 'hard') => {
+    try {
+      setQuickTestDifficulty(difficulty);
+      setShowQuickTestDifficulty(false);
+      setIsGeneratingQuiz(true);
+      setCurrentQuiz(null);
+      setUserAnswers({});
+      setQuizSubmitted(false);
+      setQuizResults(null);
+
+      // Check if we have any messages at all
+      if (!messages || messages.length === 0) {
+        showToastMessage('Please add some content to the chat before generating a quiz.');
+        setIsGeneratingQuiz(false);
+        setShowQuickTestDifficulty(true);
+        return;
+      }
+
+      // Get the primary study material for the quiz
+      const userMessages = messages.filter(m => m.role === 'user');
+      const assistantMessages = messages.filter(m => m.role === 'assistant');
+      
+      console.log('Quiz Content Detection Debug:');
+      console.log('- Total messages:', messages.length);
+      console.log('- User messages:', userMessages.length);
+      console.log('- Assistant messages:', assistantMessages.length);
+      
+      if (userMessages.length > 0) {
+        userMessages.forEach((msg, index) => {
+          const content = msg.content || '';
+          console.log(`- User msg ${index}: ${content.length} chars, ${content.split(/\s+/).length} words`);
+          if (content.length > 0) {
+            console.log(`  Preview: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`);
+          }
+        });
+      } else {
+        console.log('- No user messages found');
+      }
+      
+      if (assistantMessages.length > 0) {
+        assistantMessages.slice(-2).forEach((msg, index) => {
+          const content = msg.content || '';
+          console.log(`- Assistant msg ${assistantMessages.length - 2 + index}: ${content.length} chars, ${content.split(/\s+/).length} words`);
+        });
+      } else {
+        console.log('- No assistant messages found');
+      }
+      
+      // Identify the main study content - prioritize the longest/most substantial user message
+      let primaryContent = '';
+      let maxLength = 0;
+      let contentSource = '';
+      
+      // First, look for the most substantial user message (usually the pasted study material)
+      for (const msg of userMessages) {
+        if (msg.content && msg.content.trim().length > maxLength) {
+          const trimmed = msg.content.trim();
+          const wordCount = trimmed.split(/\s+/).length;
+          
+          // Accept any message with substantial content
+          if (trimmed.length > 50 && wordCount > 20) {
+            primaryContent = trimmed;
+            maxLength = trimmed.length;
+            contentSource = 'user_input';
+          }
+        }
+      }
+      
+      // If no substantial user content, look for assistant-generated study material
+      if (!primaryContent && assistantMessages.length > 0) {
+        // Look for assistant messages that contain educational content
+        for (let i = assistantMessages.length - 1; i >= 0; i--) {
+          const msg = assistantMessages[i];
+          if (msg.content && msg.content.length > 100) {
+            const wordCount = msg.content.split(/\s+/).length;
+            
+            // Accept any substantial assistant content
+            if (wordCount > 30) {
+              primaryContent = msg.content;
+              contentSource = 'assistant_notes';
+              break;
+            }
+          }
+        }
+      }
+      
+      // Final fallback: use any available content if we still don't have anything
+      if (!primaryContent) {
+        console.log('No primary content found, trying fallback strategies...');
+        
+        // Try any user message with content
+        for (const msg of userMessages) {
+          if (msg.content && msg.content.trim().length > 15) {
+            primaryContent = msg.content.trim();
+            contentSource = 'user_fallback';
+            console.log('Using fallback user content:', primaryContent.length, 'chars');
+            break;
+          }
+        }
+        
+        // If still nothing, try any assistant content
+        if (!primaryContent) {
+          for (let i = assistantMessages.length - 1; i >= 0; i--) {
+            const msg = assistantMessages[i];
+            if (msg.content && msg.content.length > 30) {
+              primaryContent = msg.content;
+              contentSource = 'assistant_fallback';
+              console.log('Using fallback assistant content:', primaryContent.length, 'chars');
+              break;
+            }
+          }
+        }
+        
+        // Last resort: use any non-empty content
+        if (!primaryContent) {
+          console.log('Trying last resort: any non-empty content...');
+          for (const msg of [...userMessages, ...assistantMessages]) {
+            if (msg.content && msg.content.trim().length > 5) {
+              primaryContent = msg.content.trim();
+              contentSource = 'last_resort';
+              console.log('Using last resort content:', primaryContent.length, 'chars');
+              break;
+            }
+          }
+        }
+      }
+      
+      // Validate we have meaningful content
+      if (!primaryContent || primaryContent.length < 10) {
+        console.error('Content validation failed!');
+        console.error('Primary content:', primaryContent ? `"${primaryContent.substring(0, 100)}..."` : 'null');
+        console.error('Content length:', primaryContent?.length || 0);
+        console.error('Content source:', contentSource || 'none');
+        console.error('User messages count:', userMessages.length);
+        console.error('Assistant messages count:', assistantMessages.length);
+        console.error('Total messages:', messages.length);
+        
+        // Show user-friendly error based on situation
+        if (messages.length === 0) {
+          showToastMessage('Please add some content to the chat before generating a quiz.');
+        } else if (userMessages.length === 0 && assistantMessages.length === 0) {
+          showToastMessage('No conversation content found. Please add some text first.');
+        } else {
+          showToastMessage('Please provide more detailed content to generate a meaningful quiz.');
+        }
+        
+        setIsGeneratingQuiz(false);
+        setShowQuickTestDifficulty(true);
+        return;
+      }
+      
+      // Additional content validation for quiz suitability
+      const wordCount = primaryContent.split(/\s+/).length;
+      if (wordCount < 5) {
+        console.error('Word count too low:', wordCount, 'words in:', primaryContent);
+        showToastMessage('Content is too short for quiz generation. Please provide more detailed material.');
+        setIsGeneratingQuiz(false);
+        setShowQuickTestDifficulty(true);
+        return;
+      }
+      
+      // Use only the primary content - no mixing to avoid confusion
+      const context = primaryContent;
+      
+      console.log('Quiz Generation Info:');
+      console.log('- Content Source:', contentSource);
+      console.log('- Content Preview:', context.substring(0, 300) + '...');
+      console.log('- Content Stats:', context.length, 'characters,', wordCount, 'words');
+
+      // Generate quiz prompt based on difficulty
+      const numQuestions = difficulty === 'easy' ? 5 : difficulty === 'medium' ? 7 : 10;
+      const difficultyLevel = difficulty === 'easy' ? 'basic' : difficulty === 'medium' ? 'intermediate' : 'advanced';
+      
+      const quizPrompt = `CRITICAL INSTRUCTION: You are creating a quiz from user-provided study material ONLY. Do not use any external knowledge whatsoever.
+
+STUDY MATERIAL SOURCE (${contentSource}):
+"""
+${context}
+"""
+
+YOUR TASK: Create exactly ${numQuestions} ${difficultyLevel} level multiple choice questions that are EXCLUSIVELY derived from the study material above.
+
+MANDATORY CONTENT RESTRICTIONS:
+- ONLY use information explicitly stated in the provided text
+- Every question MUST be answerable by reading the material
+- Do NOT introduce concepts not mentioned in the text
+- Do NOT use general knowledge or external facts
+- All question topics MUST appear in the provided material
+- Use the same terminology and phrasing from the source text
+
+QUESTION CREATION PROCESS:
+1. ${difficultyLevel === 'basic' ? 'Focus on direct facts, definitions, and explicit statements' : 
+   difficultyLevel === 'intermediate' ? 'Test understanding of concepts and relationships mentioned in the text' :
+   'Create questions about applications and implications based strictly on the provided content'}
+
+2. Extract specific details: names, numbers, dates, processes, definitions, relationships
+3. Create questions that directly reference these extracted details
+4. Wrong answers must be plausible but clearly incorrect based on the material
+
+CONTENT VALIDATION RULES:
+- If a name is not in the material → do not ask about it
+- If a date is not in the material → do not ask about it  
+- If a concept is not explained → do not ask about it
+- If a process is not described → do not ask about it
+
+QUESTION QUALITY STANDARDS:
+✓ "According to the text, what is [specific detail from material]?"
+✓ "Based on the provided information, [specific fact from text]?"
+✓ "The material states that [concept]. What does this mean?"
+
+✗ "Which of the following is generally true about [topic]?"
+✗ "What is commonly known about [subject]?"
+✗ Questions about topics not mentioned in the text
+
+OUTPUT FORMAT (JSON only):
+{
+  "questions": [
+    {
+      "question": "[Question directly based on provided text]",
+      "options": ["[Answer from text]", "[Wrong but contextual option]", "[Another contextual wrong option]", "[Third contextual wrong option]"],
+      "correct": 0
+    }
+  ]
+}
+
+Generate exactly ${numQuestions} questions. Each question must be traceable to specific content in the provided material. Return only valid JSON.`;
+
+      const supabase = getSupabaseClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(session?.access_token && { 'Authorization': `Bearer ${session.access_token}` }),
+        },
+        body: JSON.stringify({
+          question: quizPrompt,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('API request failed');
+      }
+
+      const data = await response.json();
+      
+      if (!data || !data.content) {
+        throw new Error('Invalid response from server');
+      }
+
+      let quizData;
+      try {
+        // Clean the content and try to parse directly
+        let cleanContent = data.content.trim();
+        
+        // Remove common streaming prefixes that might interfere
+        if (cleanContent.startsWith('data: ')) {
+          cleanContent = cleanContent.substring(6);
+        }
+        
+        // Remove any leading/trailing whitespace and newlines
+        cleanContent = cleanContent.replace(/^\s*[\r\n]+|[\r\n]+\s*$/g, '');
+        
+        // Try to parse the cleaned content
+        quizData = JSON.parse(cleanContent);
+      } catch (firstError) {
+        console.warn('Direct JSON parsing failed:', firstError);
+        
+        try {
+          // If direct parsing fails, try to extract JSON from the response
+          let content = data.content;
+          
+          // Handle streaming format like "data: {...}"
+          if (content.includes('data: {')) {
+            const dataMatch = content.match(/data:\s*(\{[\s\S]*?\})/);
+            if (dataMatch) {
+              content = dataMatch[1];
+            }
+          }
+          
+          // Extract the largest JSON object
+          const jsonMatches = content.match(/\{[\s\S]*\}/g);
+          if (jsonMatches) {
+            // Try parsing each match, starting with the longest
+            const sortedMatches = jsonMatches.sort((a: string, b: string) => b.length - a.length);
+            
+            for (const match of sortedMatches) {
+              try {
+                const cleanMatch = match.trim();
+                quizData = JSON.parse(cleanMatch);
+                
+                // Validate that this is actually quiz data
+                if (quizData && quizData.questions && Array.isArray(quizData.questions)) {
+                  break;
+                }
+              } catch {
+                continue;
+              }
+            }
+            
+            if (!quizData) {
+              throw new Error('Could not parse any valid quiz JSON');
+            }
+          } else {
+            throw new Error('No JSON structure found in response');
+          }
+        } catch (secondError) {
+          console.error('All JSON parsing attempts failed:', {
+            firstError,
+            secondError,
+            rawContent: data.content.substring(0, 200) + '...'
+          });
+          throw new Error('Could not parse quiz data from API response');
+        }
+      }
+
+      if (!quizData || !quizData.questions || !Array.isArray(quizData.questions) || quizData.questions.length === 0) {
+        throw new Error('Invalid quiz format received');
+      }
+
+      // Validate quiz quality and content relevance
+      const validQuestions = quizData.questions.filter((q: any) => {
+        // Basic structure validation
+        if (!q.question || !Array.isArray(q.options) || q.options.length !== 4 || 
+            typeof q.correct !== 'number' || q.correct < 0 || q.correct > 3) {
+          console.warn('Filtering out malformed question:', q.question);
+          return false;
+        }
+        
+        // Content quality validation
+        if (q.question.length < 15 || !q.options.every((opt: string) => opt && opt.length > 2)) {
+          console.warn('Filtering out low quality question:', q.question);
+          return false;
+        }
+        
+        // Enhanced content relevance check
+        const questionLower = q.question.toLowerCase();
+        const contextLower = context.toLowerCase();
+        
+        // Check for generic question patterns
+        const genericPatterns = [
+          'which of the following is true',
+          'what is the capital',
+          'what is commonly known',
+          'general knowledge',
+          'which statement is correct',
+          'what do you know about',
+          'in general,',
+          'typically,',
+          'usually,'
+        ];
+        
+        const isGeneric = genericPatterns.some(pattern => questionLower.includes(pattern));
+        if (isGeneric) {
+          console.warn('Filtering out generic question pattern:', q.question);
+          return false;
+        }
+        
+        // Content relevance validation - check if question relates to the source material
+        const questionWords = q.question.toLowerCase().split(/\W+/).filter((word: string) => word.length > 3);
+        const contextWords = new Set(contextLower.split(/\W+/).filter((word: string) => word.length > 3));
+        
+        // Calculate relevance score based on shared content words
+        const relevantWords = questionWords.filter((word: string) => contextWords.has(word));
+        const relevanceScore = relevantWords.length / Math.max(questionWords.length, 1);
+        
+        if (relevanceScore < 0.2) {
+          console.warn('Filtering out low relevance question (score:', relevanceScore.toFixed(2), '):', q.question);
+          return false;
+        }
+        
+        // Check if the correct answer contains content-specific terms
+        const correctAnswer = q.options[q.correct];
+        if (correctAnswer && correctAnswer.length > 3) {
+          const answerWords = correctAnswer.toLowerCase().split(/\W+/).filter((word: string) => word.length > 3);
+          const answerRelevance = answerWords.filter((word: string) => contextWords.has(word)).length > 0;
+          
+          if (!answerRelevance) {
+            console.warn('Filtering out question with non-content answer:', q.question, '→', correctAnswer);
+            return false;
+          }
+        }
+        
+        return true;
+      });
+
+      if (validQuestions.length === 0) {
+        throw new Error('Unable to generate content-relevant questions. Please provide more specific study material.');
+      }
+
+      // Ensure we have enough questions for the requested difficulty
+      if (validQuestions.length < Math.min(3, numQuestions)) {
+        throw new Error('Not enough content-relevant questions could be generated. Try providing more detailed material.');
+      }
+
+      // Use only valid questions
+      const finalQuiz = {
+        ...quizData,
+        questions: validQuestions
+      };
+
+      console.log('Generated Quiz Questions:');
+      validQuestions.forEach((q: any, index: number) => {
+        console.log(`Q${index + 1}: ${q.question}`);
+        console.log(`Correct Answer: ${q.options[q.correct]}`);
+      });
+
+      setCurrentQuiz(finalQuiz);
+
+    } catch (error) {
+      console.error('Quiz generation error:', error);
+      // Reset UI state and show user-friendly message
+      setIsGeneratingQuiz(false);
+      setShowQuickTestDifficulty(true);
+      
+      // Provide specific error feedback based on the error type
+      let errorMessage = 'Unable to generate quiz. Please try again.';
+      
+      const errorStr = error instanceof Error ? error.message : String(error);
+      
+      if (errorStr.includes('Not enough content') || errorStr.includes('Insufficient content')) {
+        errorMessage = 'Not enough content to generate a quiz. Please add more information.';
+      } else if (errorStr.includes('Content too short')) {
+        errorMessage = 'Content too short for meaningful quiz questions. Please provide more detailed material.';
+      } else if (errorStr.includes('content-relevant questions')) {
+        errorMessage = 'Unable to create relevant questions from this content. Try providing more specific study material.';
+      } else if (errorStr.includes('quality standards')) {
+        errorMessage = 'Content quality insufficient for quiz generation. Please provide clearer study material.';
+      } else if (errorStr.includes('parse quiz data') || errorStr.includes('JSON')) {
+        errorMessage = 'Unable to process quiz response. Please try again.';
+      } else {
+        // Check if we have any content at all
+        const userMessages = messages.filter(m => m.role === 'user');
+        const hasAnyContent = userMessages.some(m => m.content && m.content.trim().length > 20);
+        
+        errorMessage = hasAnyContent
+          ? 'Unable to generate quiz from the provided content. Please try again with different material.'
+          : 'Please provide study material to generate relevant quiz questions.';
+      }
+      
+      showToastMessage(errorMessage);
+    } finally {
+      setIsGeneratingQuiz(false);
+    }
+  };
+
+  const handleQuizAnswer = (questionIndex: number, optionIndex: number) => {
+    if (quizSubmitted) return;
+    setUserAnswers(prev => ({
+      ...prev,
+      [questionIndex]: optionIndex
+    }));
+  };
+
+  const handleQuizSubmit = () => {
+    if (!currentQuiz || quizSubmitted) return;
+    
+    let correct = 0;
+    const total = currentQuiz.questions.length;
+    
+    currentQuiz.questions.forEach((question: any, index: number) => {
+      if (userAnswers[index] === question.correct) {
+        correct++;
+      }
+    });
+    
+    const percentage = Math.round((correct / total) * 100);
+    let feedback = '';
+    
+    if (percentage >= 80) {
+      feedback = 'Excellent work! You have a strong understanding of the material.';
+    } else if (percentage >= 60) {
+      feedback = 'Good job! You\'re on the right track. Review the areas you missed.';
+    } else if (percentage >= 40) {
+      feedback = 'Not bad, but there\'s room for improvement. Study the material again.';
+    } else {
+      feedback = 'Keep studying! Focus on understanding the key concepts better.';
+    }
+    
+    setQuizResults({ score: correct, total, feedback });
+    setQuizSubmitted(true);
+  };
+
+  const resetQuickTest = () => {
+    setShowQuickTestDifficulty(false);
+    setQuickTestDifficulty(null);
+    setCurrentQuiz(null);
+    setUserAnswers({});
+    setQuizSubmitted(false);
+    setQuizResults(null);
+    setIsGeneratingQuiz(false);
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -1146,6 +1706,7 @@ ${userInput}`,
     { value: 'presentation-notes', label: 'Presentation Notes' },
     { value: 'summary', label: 'Summary' },
     { value: 'mcqs', label: 'MCQs' },
+    { value: 'quick-test', label: 'Quick Test' },
   ];
 
   if (loading) {
@@ -1314,6 +1875,33 @@ ${userInput}`,
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
+                                    console.log('Copy button clicked');
+                                    handleCopy(message.content);
+                                  }}
+                                  disabled={isCopying || !message.content || message.content.trim().length === 0}
+                                  className={`inline-flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-medium rounded-md transition-colors min-h-[32px] ${
+                                    isCopying || !message.content || message.content.trim().length === 0
+                                      ? 'text-gray-400 cursor-not-allowed bg-gray-100'
+                                      : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200 cursor-pointer'
+                                  }`}
+                                >
+                                  {isCopying ? (
+                                    <>
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                      Copying...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy className="w-3.5 h-3.5" />
+                                      Copy
+                                    </>
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
                                     console.log('Export DOC button clicked');
                                     handleExport('doc', message.content);
                                   }}
@@ -1435,7 +2023,7 @@ ${userInput}`,
                       />
                     </div>
                   </>
-                ) : (
+                ) : selectedFormat !== 'quick-test' ? (
                   <>
                     <label className="text-xs sm:text-sm text-gray-700 font-medium">Word count:</label>
                     <div className="flex flex-wrap gap-2">
@@ -1470,8 +2058,164 @@ ${userInput}`,
                       />
                     </div>
                   </>
-                )}
+                ) : null}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Quick Test Difficulty Selection */}
+        {showQuickTestDifficulty && (
+          <div className="bg-blue-50 border-t border-blue-200 px-3 sm:px-6 py-3 sm:py-4">
+            <div className="max-w-4xl mx-auto">
+              <div className="flex flex-col gap-3">
+                <h3 className="text-sm sm:text-base font-semibold text-gray-800">Choose Test Difficulty</h3>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { value: 'easy', label: 'Easy (5 questions)', color: 'green' },
+                    { value: 'medium', label: 'Medium (7 questions)', color: 'yellow' },
+                    { value: 'hard', label: 'Hard (10 questions)', color: 'red' }
+                  ].map((difficulty) => (
+                    <button
+                      key={difficulty.value}
+                      onClick={() => handleQuickTestDifficulty(difficulty.value as 'easy' | 'medium' | 'hard')}
+                      disabled={isGeneratingQuiz}
+                      className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
+                        difficulty.color === 'green' 
+                          ? 'bg-green-50 border-green-300 text-green-700 hover:bg-green-100'
+                          : difficulty.color === 'yellow'
+                          ? 'bg-yellow-50 border-yellow-300 text-yellow-700 hover:bg-yellow-100'
+                          : 'bg-red-50 border-red-300 text-red-700 hover:bg-red-100'
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      {difficulty.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={resetQuickTest}
+                  className="text-xs text-gray-500 hover:text-gray-700 self-start"
+                  disabled={isGeneratingQuiz}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Quiz Generation Loading */}
+        {isGeneratingQuiz && (
+          <div className="bg-gray-50 border-t border-gray-200 px-3 sm:px-6 py-8">
+            <div className="max-w-4xl mx-auto text-center">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
+              <p className="text-gray-600">Please wait, preparing your test...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Quiz Interface */}
+        {currentQuiz && !isGeneratingQuiz && (
+          <div className="bg-white border-t border-gray-200 px-3 sm:px-6 py-4 overflow-y-auto" data-quiz-container>
+            <div className="max-w-4xl mx-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                  Quick Test - {quickTestDifficulty?.charAt(0).toUpperCase()}{quickTestDifficulty?.slice(1)} Level
+                  <span className="text-sm font-normal text-gray-600 ml-2">
+                    ({currentQuiz.questions.length} question{currentQuiz.questions.length !== 1 ? 's' : ''})
+                  </span>
+                </h2>
+                <button
+                  onClick={resetQuickTest}
+                  className="text-sm text-gray-500 hover:text-gray-700"
+                  disabled={quizSubmitted}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {!quizSubmitted ? (
+                <div className="space-y-6">
+                  {currentQuiz.questions.map((question: any, questionIndex: number) => (
+                    <div key={questionIndex} className="bg-gray-50 rounded-lg p-4">
+                      <h3 className="font-semibold text-gray-900 mb-3">
+                        {questionIndex + 1}. {question.question}
+                      </h3>
+                      <div className="space-y-2">
+                        {question.options.map((option: string, optionIndex: number) => (
+                          <label
+                            key={optionIndex}
+                            className="flex items-center gap-3 cursor-pointer hover:bg-white rounded-md p-2 transition-colors"
+                          >
+                            <input
+                              type="radio"
+                              name={`question-${questionIndex}`}
+                              value={optionIndex}
+                              checked={userAnswers[questionIndex] === optionIndex}
+                              onChange={() => handleQuizAnswer(questionIndex, optionIndex)}
+                              className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-gray-700">{option}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                  <div className="flex justify-center pt-4">
+                    <button
+                      onClick={handleQuizSubmit}
+                      disabled={Object.keys(userAnswers).length < currentQuiz.questions.length}
+                      className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      Submit Test
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <div className="bg-blue-50 rounded-lg p-6 mb-4">
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">Test Results</h3>
+                    <div className="text-3xl font-bold text-blue-600 mb-2">
+                      {quizResults?.score}/{quizResults?.total}
+                    </div>
+                    <div className="text-lg text-gray-600 mb-4">
+                      Score: {Math.round(((quizResults?.score || 0) / (quizResults?.total || 1)) * 100)}%
+                    </div>
+                    <p className="text-gray-700">{quizResults?.feedback}</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="font-semibold text-gray-900">Correct Answers:</h4>
+                    {currentQuiz.questions.map((question: any, questionIndex: number) => (
+                      <div key={questionIndex} className={`text-left p-3 rounded-lg ${
+                        userAnswers[questionIndex] === question.correct ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+                      }`}>
+                        <div className="font-medium text-gray-900 mb-1">
+                          {questionIndex + 1}. {question.question}
+                        </div>
+                        <div className={`text-sm ${
+                          userAnswers[questionIndex] === question.correct ? 'text-green-700' : 'text-red-700'
+                        }`}>
+                          Correct: {question.options[question.correct]}
+                          {userAnswers[questionIndex] !== question.correct && (
+                            <span className="block text-gray-600">
+                              Your answer: {question.options[userAnswers[questionIndex]] || 'Not answered'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={resetQuickTest}
+                    className="mt-6 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                  >
+                    Take Another Test
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

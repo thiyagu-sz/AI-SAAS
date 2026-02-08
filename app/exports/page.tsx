@@ -11,10 +11,12 @@ import {
   FileText,
   File,
   Loader2,
-  ArrowDown
+  ArrowDown,
+  Copy,
 } from 'lucide-react';
 import Link from 'next/link';
 import { jsPDF } from 'jspdf';
+import { copyToClipboard, extractTextFromMarkdown } from '@/app/lib/clipboard';
 
 interface Export {
   id: string;
@@ -32,6 +34,7 @@ export default function ExportsPage() {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [exports, setExports] = useState<Export[]>([]);
+  const [copyingId, setCopyingId] = useState<string | null>(null);
   const [statusModal, setStatusModal] = useState({
     show: false,
     type: 'success' as 'success' | 'error' | 'warning' | 'info',
@@ -265,6 +268,44 @@ export default function ExportsPage() {
     }
   };
 
+  const handleCopy = async (exportItem: Export) => {
+    if (!exportItem.content || exportItem.content.trim().length === 0) {
+      setStatusModal({
+        show: true,
+        type: 'warning',
+        title: 'Nothing to Copy',
+        message: 'No content available to copy.',
+      });
+      return;
+    }
+
+    if (copyingId) return;
+    setCopyingId(exportItem.id);
+
+    try {
+      // Extract plain text from markdown while preserving structure
+      const plainText = extractTextFromMarkdown(exportItem.content);
+      const result = await copyToClipboard(plainText);
+      
+      setStatusModal({
+        show: true,
+        type: result.success ? 'success' : 'error',
+        title: result.success ? 'Copied' : 'Copy Failed',
+        message: result.message,
+      });
+    } catch (error) {
+      console.error('Copy error:', error);
+      setStatusModal({
+        show: true,
+        type: 'error',
+        title: 'Copy Failed',
+        message: 'Unable to copy right now. Please try again.',
+      });
+    } finally {
+      setCopyingId(null);
+    }
+  };
+
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -401,13 +442,36 @@ export default function ExportsPage() {
                               {formatDate(exportItem.createdAt)}
                             </td>
                             <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-right">
-                              <button
-                                onClick={() => handleExport(exportItem)}
-                                className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-                              >
-                                <ArrowDown className="w-4 h-4" />
-                                Download
-                              </button>
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => handleCopy(exportItem)}
+                                  disabled={copyingId === exportItem.id || !exportItem.content || exportItem.content.trim().length === 0}
+                                  className={`inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                                    copyingId === exportItem.id || !exportItem.content || exportItem.content.trim().length === 0
+                                      ? 'text-gray-400 cursor-not-allowed bg-gray-100'
+                                      : 'text-gray-600 hover:text-gray-700 hover:bg-gray-100'
+                                  }`}
+                                >
+                                  {copyingId === exportItem.id ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                      Copying...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy className="w-4 h-4" />
+                                      Copy
+                                    </>
+                                  )}
+                                </button>
+                                <button
+                                  onClick={() => handleExport(exportItem)}
+                                  className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                                >
+                                  <ArrowDown className="w-4 h-4" />
+                                  Download
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}

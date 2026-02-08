@@ -404,6 +404,77 @@ REQUIRED MARKDOWN STRUCTURE:
   });
 }
 
+async function handleQuizGeneration(question: string): Promise<Response> {
+  try {
+    const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+    
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: 'OpenRouter API key not found' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+      'X-Title': 'QuickNotes',
+    };
+
+    console.log('🎯 Generating quiz with OpenRouter API');
+
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model: 'tngtech/deepseek-r1t2-chimera:free',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a quiz generator. Follow the user instructions exactly and return only valid JSON.',
+          },
+          {
+            role: 'user',
+            content: question,
+          },
+        ],
+        stream: false, // Important: disable streaming for JSON response
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('OpenRouter API error:', response.status, await response.text());
+      return new Response(JSON.stringify({ error: 'Failed to generate quiz' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+
+    if (!content) {
+      return new Response(JSON.stringify({ error: 'No content received from API' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Return the content for client-side parsing
+    return new Response(JSON.stringify({ content }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+  } catch (error) {
+    console.error('Quiz generation error:', error);
+    return new Response(JSON.stringify({ error: 'Failed to generate quiz' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+}
+
 export async function POST(request: NextRequest) {
   // Debug: Check API key at route level
   const routeLevelKey = process.env.OPENROUTER_API_KEY?.trim();
@@ -490,6 +561,16 @@ export async function POST(request: NextRequest) {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       });
+    }
+
+    // Check if this is a quiz generation request
+    const isQuizRequest = question.includes('Create a') && 
+                         question.includes('multiple choice quiz') && 
+                         question.includes('Return ONLY a valid JSON object');
+
+    if (isQuizRequest) {
+      // Handle quiz generation with non-streaming response
+      return handleQuizGeneration(question);
     }
 
     // Generate embedding for the question

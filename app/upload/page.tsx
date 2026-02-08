@@ -33,7 +33,7 @@ interface RecentUpload {
   status: 'processing' | 'completed';
 }
 
-type FormatType = 'key-points' | 'main-concepts' | 'exam-points' | 'short-notes' | 'speech-notes' | 'presentation-notes' | 'summary' | 'mcqs';
+type FormatType = 'key-points' | 'main-concepts' | 'exam-points' | 'short-notes' | 'speech-notes' | 'presentation-notes' | 'summary' | 'mcqs' | 'quick-test';
 
 export default function UploadPage() {
   const router = useRouter();
@@ -70,6 +70,7 @@ export default function UploadPage() {
     { value: 'presentation-notes', label: 'Presentation Notes' },
     { value: 'summary', label: 'Summary' },
     { value: 'mcqs', label: 'MCQs' },
+    { value: 'quick-test', label: 'Quick Test' },
   ];
 
   const fetchRecentUploads = useCallback(async () => {
