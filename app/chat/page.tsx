@@ -62,6 +62,7 @@ function ChatContent() {
   const [userAnswers, setUserAnswers] = useState<{[key: number]: number}>({});
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [quizResults, setQuizResults] = useState<{score: number, total: number, feedback: string} | null>(null);
+  const [quickTestContent, setQuickTestContent] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -634,6 +635,14 @@ ${userInput}`,
 
     // Handle Quick Test selection
     if (showFormatOptions && selectedFormat === 'quick-test') {
+      // Check if we have content to work with
+      if (!userInput.trim() || userInput.trim().length < 120) {
+        showToastMessage('Please paste content first, then select Quick Test.');
+        return;
+      }
+      
+      // Store the content for Quick Test before clearing input
+      setQuickTestContent(userInput.trim());
       setShowQuickTestDifficulty(true);
       setInput('');
       setShowFormatOptions(false);
@@ -1197,6 +1206,7 @@ ${userInput}`,
 
   const handleQuickTestDifficulty = async (difficulty: 'easy' | 'medium' | 'hard') => {
     try {
+      console.log('🎯 Quick Test Started - Difficulty:', difficulty);
       setQuickTestDifficulty(difficulty);
       setShowQuickTestDifficulty(false);
       setIsGeneratingQuiz(true);
@@ -1205,126 +1215,35 @@ ${userInput}`,
       setQuizSubmitted(false);
       setQuizResults(null);
 
-      // Check if we have any messages at all
-      if (!messages || messages.length === 0) {
-        showToastMessage('Please add some content to the chat before generating a quiz.');
+      // Check if we have stored content for Quick Test
+      const hasQuickTestContent = quickTestContent && quickTestContent.length >= 120;
+      
+      console.log('Content check for Quick Test:', { hasQuickTestContent, contentLength: quickTestContent?.length || 0 });
+      
+      if (!hasQuickTestContent) {
+        console.log('❌ Quick Test requires stored content');
+        showToastMessage('Please paste content in the text field first, then select Quick Test.');
         setIsGeneratingQuiz(false);
         setShowQuickTestDifficulty(true);
         return;
       }
 
       // Get the primary study material for the quiz
+      let primaryContent = '';
+      let contentSource = '';
+      
+      // Use the stored Quick Test content
+      primaryContent = quickTestContent;
+      contentSource = 'quick_test_content';
+      console.log('✅ Using stored Quick Test content as source:', primaryContent.length, 'chars');
+      
+      // Define message filters for debugging
       const userMessages = messages.filter(m => m.role === 'user');
       const assistantMessages = messages.filter(m => m.role === 'assistant');
       
-      console.log('Quiz Content Detection Debug:');
-      console.log('- Total messages:', messages.length);
-      console.log('- User messages:', userMessages.length);
-      console.log('- Assistant messages:', assistantMessages.length);
-      
-      if (userMessages.length > 0) {
-        userMessages.forEach((msg, index) => {
-          const content = msg.content || '';
-          console.log(`- User msg ${index}: ${content.length} chars, ${content.split(/\s+/).length} words`);
-          if (content.length > 0) {
-            console.log(`  Preview: "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`);
-          }
-        });
-      } else {
-        console.log('- No user messages found');
-      }
-      
-      if (assistantMessages.length > 0) {
-        assistantMessages.slice(-2).forEach((msg, index) => {
-          const content = msg.content || '';
-          console.log(`- Assistant msg ${assistantMessages.length - 2 + index}: ${content.length} chars, ${content.split(/\s+/).length} words`);
-        });
-      } else {
-        console.log('- No assistant messages found');
-      }
-      
-      // Identify the main study content - prioritize the longest/most substantial user message
-      let primaryContent = '';
-      let maxLength = 0;
-      let contentSource = '';
-      
-      // First, look for the most substantial user message (usually the pasted study material)
-      for (const msg of userMessages) {
-        if (msg.content && msg.content.trim().length > maxLength) {
-          const trimmed = msg.content.trim();
-          const wordCount = trimmed.split(/\s+/).length;
-          
-          // Accept any message with substantial content
-          if (trimmed.length > 50 && wordCount > 20) {
-            primaryContent = trimmed;
-            maxLength = trimmed.length;
-            contentSource = 'user_input';
-          }
-        }
-      }
-      
-      // If no substantial user content, look for assistant-generated study material
-      if (!primaryContent && assistantMessages.length > 0) {
-        // Look for assistant messages that contain educational content
-        for (let i = assistantMessages.length - 1; i >= 0; i--) {
-          const msg = assistantMessages[i];
-          if (msg.content && msg.content.length > 100) {
-            const wordCount = msg.content.split(/\s+/).length;
-            
-            // Accept any substantial assistant content
-            if (wordCount > 30) {
-              primaryContent = msg.content;
-              contentSource = 'assistant_notes';
-              break;
-            }
-          }
-        }
-      }
-      
-      // Final fallback: use any available content if we still don't have anything
-      if (!primaryContent) {
-        console.log('No primary content found, trying fallback strategies...');
-        
-        // Try any user message with content
-        for (const msg of userMessages) {
-          if (msg.content && msg.content.trim().length > 15) {
-            primaryContent = msg.content.trim();
-            contentSource = 'user_fallback';
-            console.log('Using fallback user content:', primaryContent.length, 'chars');
-            break;
-          }
-        }
-        
-        // If still nothing, try any assistant content
-        if (!primaryContent) {
-          for (let i = assistantMessages.length - 1; i >= 0; i--) {
-            const msg = assistantMessages[i];
-            if (msg.content && msg.content.length > 30) {
-              primaryContent = msg.content;
-              contentSource = 'assistant_fallback';
-              console.log('Using fallback assistant content:', primaryContent.length, 'chars');
-              break;
-            }
-          }
-        }
-        
-        // Last resort: use any non-empty content
-        if (!primaryContent) {
-          console.log('Trying last resort: any non-empty content...');
-          for (const msg of [...userMessages, ...assistantMessages]) {
-            if (msg.content && msg.content.trim().length > 5) {
-              primaryContent = msg.content.trim();
-              contentSource = 'last_resort';
-              console.log('Using last resort content:', primaryContent.length, 'chars');
-              break;
-            }
-          }
-        }
-      }
-      
-      // Validate we have meaningful content
-      if (!primaryContent || primaryContent.length < 10) {
-        console.error('Content validation failed!');
+      // Content sufficiency check - require minimum 120 characters
+      if (!primaryContent || primaryContent.length < 120) {
+        console.error('❌ Content validation failed!');
         console.error('Primary content:', primaryContent ? `"${primaryContent.substring(0, 100)}..."` : 'null');
         console.error('Content length:', primaryContent?.length || 0);
         console.error('Content source:', contentSource || 'none');
@@ -1332,13 +1251,20 @@ ${userInput}`,
         console.error('Assistant messages count:', assistantMessages.length);
         console.error('Total messages:', messages.length);
         
+        console.log('🔍 Debug: All user messages:');
+        userMessages.forEach((msg, i) => {
+          console.log(`  User msg ${i}:`, {
+            length: msg.content?.length || 0,
+            preview: msg.content?.substring(0, 50) || 'empty',
+            wordCount: msg.content ? msg.content.split(/\s+/).length : 0
+          });
+        });
+        
         // Show user-friendly error based on situation
-        if (messages.length === 0) {
-          showToastMessage('Please add some content to the chat before generating a quiz.');
-        } else if (userMessages.length === 0 && assistantMessages.length === 0) {
-          showToastMessage('No conversation content found. Please add some text first.');
+        if (messages.length === 0 || primaryContent.length < 120) {
+          showToastMessage('Not enough content to generate a quiz. Please add more information.');
         } else {
-          showToastMessage('Please provide more detailed content to generate a meaningful quiz.');
+          showToastMessage('Not enough content to generate a quiz. Please add more information.');
         }
         
         setIsGeneratingQuiz(false);
@@ -1346,9 +1272,11 @@ ${userInput}`,
         return;
       }
       
+      console.log('✅ Content validation passed! Content length:', primaryContent.length);
+      
       // Additional content validation for quiz suitability
       const wordCount = primaryContent.split(/\s+/).length;
-      if (wordCount < 5) {
+      if (wordCount < 3) {
         console.error('Word count too low:', wordCount, 'words in:', primaryContent);
         showToastMessage('Content is too short for quiz generation. Please provide more detailed material.');
         setIsGeneratingQuiz(false);
@@ -1368,59 +1296,42 @@ ${userInput}`,
       const numQuestions = difficulty === 'easy' ? 5 : difficulty === 'medium' ? 7 : 10;
       const difficultyLevel = difficulty === 'easy' ? 'basic' : difficulty === 'medium' ? 'intermediate' : 'advanced';
       
-      const quizPrompt = `CRITICAL INSTRUCTION: You are creating a quiz from user-provided study material ONLY. Do not use any external knowledge whatsoever.
+      const quizPrompt = `CRITICAL INSTRUCTION: Use ONLY the content below to generate questions. If a concept is not mentioned, it must NOT appear. If the content is insufficient, do NOT guess.
 
-STUDY MATERIAL SOURCE (${contentSource}):
+STUDY MATERIAL:
 """
 ${context}
 """
 
-YOUR TASK: Create exactly ${numQuestions} ${difficultyLevel} level multiple choice questions that are EXCLUSIVELY derived from the study material above.
+TASK: Create exactly ${numQuestions} ${difficultyLevel} level multiple choice questions using EXCLUSIVELY the content above.
 
-MANDATORY CONTENT RESTRICTIONS:
-- ONLY use information explicitly stated in the provided text
-- Every question MUST be answerable by reading the material
-- Do NOT introduce concepts not mentioned in the text
-- Do NOT use general knowledge or external facts
-- All question topics MUST appear in the provided material
-- Use the same terminology and phrasing from the source text
+STRICT CONTENT RULES:
+- Every question MUST be answerable using ONLY the given content
+- Use the exact terminology from the provided text
+- If information is not stated, do NOT include it
+- Each question must map to a specific sentence or paragraph
 
-QUESTION CREATION PROCESS:
-1. ${difficultyLevel === 'basic' ? 'Focus on direct facts, definitions, and explicit statements' : 
-   difficultyLevel === 'intermediate' ? 'Test understanding of concepts and relationships mentioned in the text' :
-   'Create questions about applications and implications based strictly on the provided content'}
+DIFFICULTY GUIDELINES:
+${difficultyLevel === 'basic' ? '- Ask about direct facts or definitions explicitly stated' : 
+  difficultyLevel === 'intermediate' ? '- Ask about comparisons or explanations stated in the content' :
+  '- Ask about logical inferences ONLY if the information exists in the content'}
 
-2. Extract specific details: names, numbers, dates, processes, definitions, relationships
-3. Create questions that directly reference these extracted details
-4. Wrong answers must be plausible but clearly incorrect based on the material
-
-CONTENT VALIDATION RULES:
-- If a name is not in the material → do not ask about it
-- If a date is not in the material → do not ask about it  
-- If a concept is not explained → do not ask about it
-- If a process is not described → do not ask about it
-
-QUESTION QUALITY STANDARDS:
-✓ "According to the text, what is [specific detail from material]?"
-✓ "Based on the provided information, [specific fact from text]?"
-✓ "The material states that [concept]. What does this mean?"
-
-✗ "Which of the following is generally true about [topic]?"
-✗ "What is commonly known about [subject]?"
-✗ Questions about topics not mentioned in the text
+VALIDATION CHECK:
+Before including any question, ask: "Can this be answered using only the pasted content?"
+If NO, discard and regenerate.
 
 OUTPUT FORMAT (JSON only):
 {
   "questions": [
     {
-      "question": "[Question directly based on provided text]",
-      "options": ["[Answer from text]", "[Wrong but contextual option]", "[Another contextual wrong option]", "[Third contextual wrong option]"],
+      "question": "[Question based on provided text]",
+      "options": ["[Correct answer from text]", "[Wrong option]", "[Wrong option]", "[Wrong option]"],
       "correct": 0
     }
   ]
 }
 
-Generate exactly ${numQuestions} questions. Each question must be traceable to specific content in the provided material. Return only valid JSON.`;
+Generate exactly ${numQuestions} questions. Return only valid JSON.`;
 
       const supabase = getSupabaseClient();
       const { data: { session } } = await supabase.auth.getSession();
@@ -1562,7 +1473,7 @@ Generate exactly ${numQuestions} questions. Each question must be traceable to s
         const relevantWords = questionWords.filter((word: string) => contextWords.has(word));
         const relevanceScore = relevantWords.length / Math.max(questionWords.length, 1);
         
-        if (relevanceScore < 0.2) {
+        if (relevanceScore < 0.3) {
           console.warn('Filtering out low relevance question (score:', relevanceScore.toFixed(2), '):', q.question);
           return false;
         }
@@ -1577,6 +1488,14 @@ Generate exactly ${numQuestions} questions. Each question must be traceable to s
             console.warn('Filtering out question with non-content answer:', q.question, '→', correctAnswer);
             return false;
           }
+        }
+        
+        // Additional validation: Check if answer can be found in content
+        const answerInContent = contextLower.includes(correctAnswer.toLowerCase()) || 
+                               contextLower.includes(correctAnswer.toLowerCase().replace(/[^\w\s]/g, ''));
+        if (!answerInContent && relevanceScore < 0.4) {
+          console.warn('Filtering out question - answer not traceable to content:', q.question);
+          return false;
         }
         
         return true;
@@ -1687,6 +1606,7 @@ Generate exactly ${numQuestions} questions. Each question must be traceable to s
     setQuizSubmitted(false);
     setQuizResults(null);
     setIsGeneratingQuiz(false);
+    setQuickTestContent('');
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

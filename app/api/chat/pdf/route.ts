@@ -153,8 +153,8 @@ export async function POST(request: NextRequest) {
         if (/^[\|\s\-:]+$/.test(trimmedLine)) continue;
         
         const cells = trimmedLine.split('|')
-          .map(cell => cell.trim())
-          .filter(cell => cell.length > 0);
+          .map((cell: string) => cell.trim())
+          .filter((cell: string) => cell.length > 0);
         
         if (cells.length > 0) {
           tableData.push(cells);

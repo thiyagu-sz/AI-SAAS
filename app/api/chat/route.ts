@@ -564,9 +564,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if this is a quiz generation request
-    const isQuizRequest = question.includes('Create a') && 
-                         question.includes('multiple choice quiz') && 
-                         question.includes('Return ONLY a valid JSON object');
+    const isQuizRequest = (question.includes('multiple choice questions') || question.includes('quiz')) && 
+                         (question.includes('JSON only') || question.includes('Return ONLY a valid JSON object') ||
+                          question.includes('OUTPUT FORMAT (JSON only)'));
 
     if (isQuizRequest) {
       // Handle quiz generation with non-streaming response
