@@ -14,15 +14,21 @@ export const metadata: Metadata = {
   title: "QuickNotes - AI Study Assistant",
   description: "AI-powered study notes and summaries. Transform your documents into organized study materials.",
   icons: {
-    icon: "/dominlogo.png",
-    apple: "/dominlogo.png",
+    icon: [
+      { url: "/favicon.ico?v=5", type: "image/x-icon" },
+      { url: "/favicon.png?v=5", sizes: "32x32", type: "image/png" },
+      { url: "/favicon.png?v=5", sizes: "16x16", type: "image/png" }
+    ],
+    apple: [
+      { url: "/favicon.png?v=5", sizes: "180x180", type: "image/png" }
+    ],
   },
   openGraph: {
     title: "QuickNotes - AI Study Assistant",
     description: "Transform your documents into organized study materials with AI.",
     images: [
       {
-        url: "/dominlogo.png",
+        url: "/applogo.png?v=3",
         width: 256,
         height: 256,
         alt: "QuickNotes Logo",
@@ -33,7 +39,7 @@ export const metadata: Metadata = {
     card: "summary",
     title: "QuickNotes",
     description: "AI-powered study notes and summaries",
-    images: ["/dominlogo.png"],
+    images: ["/applogo.png?v=3"],
   },
 };
 
@@ -47,6 +53,11 @@ export default function RootLayout({
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=5, viewport-fit=cover, user-scalable=yes" />
+        <link rel="icon" type="image/x-icon" href="/favicon.ico?v=5" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png?v=5" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon.png?v=5" />
+        <link rel="shortcut icon" href="/favicon.ico?v=5" />
+        <link rel="apple-touch-icon" href="/favicon.png?v=5" />
         <meta name="theme-color" content="#ffffff" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

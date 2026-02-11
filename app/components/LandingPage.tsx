@@ -20,7 +20,7 @@ export default function LandingPage() {
         <div className="px-4 md:px-10 py-3 flex items-center justify-between max-w-7xl mx-auto">
           <Link href="/" className="flex items-center group cursor-pointer">
             <img 
-              src="/applogo.png" 
+              src="/applogo.png?v=3" 
               alt="QuickNotes Logo" 
               className="h-10 sm:h-12 md:h-14 w-auto object-contain"
             />
@@ -52,17 +52,21 @@ export default function LandingPage() {
         </div>
         <div className="max-w-4xl text-center flex flex-col gap-6 items-center z-10">
           {/* QuickNotes Hero Logo */}
-          <div className="flex items-center justify-center mb-4">
-            <img 
-              src="/applogo.png" 
-              alt="QuickNotes Logo" 
-              className="h-16 md:h-20 lg:h-24 w-auto object-contain drop-shadow-lg"
-            />
+          <div className="flex items-center justify-center mb-6">
+            <picture>
+              <img 
+                src="/applogo.png" 
+                alt="QuickNotes Logo" 
+                className="h-20 md:h-28 lg:h-32 w-auto object-contain drop-shadow-xl"
+                loading="eager"
+                decoding="async"
+              />
+            </picture>
           </div>
           
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-blue-100 shadow-sm mb-2">
             <span className="flex h-2 w-2 rounded-full bg-primary animate-pulse"></span>
-            <span className="text-xs font-semibold text-primary uppercase tracking-wide">Powered by OpenRouter AI Models</span>
+            <span className="text-xs font-semibold text-primary uppercase tracking-wide">Built for Students</span>
           </div>
           <h1 className="text-text-main text-5xl md:text-6xl lg:text-7xl font-black leading-[1.1] tracking-tight">
             Turn lecture PDFs into<br/>
@@ -295,7 +299,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-12">
             <div className="col-span-2 lg:col-span-2 flex flex-col gap-4">
               <div className="flex items-center gap-2 text-text-main">
-                <img src="/applogo.png" alt="Logo" className="h-8 sm:h-10 md:h-12 w-auto object-contain" />
+                <img src="/applogo.png?v=3" alt="Logo" className="h-8 sm:h-10 md:h-12 w-auto object-contain" />
                 <h2 className="text-lg font-bold">QuickNotes</h2>
               </div>
               <p className="text-text-muted text-sm max-w-xs">
@@ -310,30 +314,24 @@ export default function LandingPage() {
               <h3 className="font-bold text-text-main text-sm">Product</h3>
               <a className="text-text-muted text-sm hover:text-primary" href="#features">Features</a>
               <a className="text-text-muted text-sm hover:text-primary" href="#how-it-works">How it Works</a>
-              <a className="text-text-muted text-sm hover:text-primary" href="#">Changelog</a>
+              <a className="text-text-muted text-sm hover:text-primary" href="mailto:thiyaguai2004@gmail.com">Report a Bug</a>
             </div>
             <div className="flex flex-col gap-3">
-              <h3 className="font-bold text-text-main text-sm">Developer Info</h3>
-              <a className="text-text-muted text-sm hover:text-primary" href="https://thiyagu-portfolio.me/" target="_blank" rel="noopener noreferrer">About</a>
-              <a className="text-text-muted text-sm hover:text-primary" href="https://thiyagu-portfolio.me/" target="_blank" rel="noopener noreferrer">Blog</a>
-              <a className="text-text-muted text-sm hover:text-primary" href="https://thiyagu-portfolio.me/" target="_blank" rel="noopener noreferrer">Careers</a>
+              <h3 className="font-bold text-text-main text-sm">Developer</h3>
+              <a className="text-text-muted text-sm hover:text-primary" href="https://thiyagu-portfolio.me" target="_blank" rel="noopener noreferrer">Portfolio</a>
               <a className="text-text-muted text-sm hover:text-primary" href="https://thiyagu-portfolio.me/" target="_blank" rel="noopener noreferrer">Contact</a>
             </div>
             <div className="flex flex-col gap-3">
               <h3 className="font-bold text-text-main text-sm">Legal</h3>
-              <a className="text-text-muted text-sm hover:text-primary" href="#">Privacy</a>
-              <a className="text-text-muted text-sm hover:text-primary" href="#">Terms</a>
-              <a className="text-text-muted text-sm hover:text-primary" href="#">Security</a>
+              <a className="text-text-muted text-sm hover:text-primary" href="/privacy">Privacy Policy</a>
+              <a className="text-text-muted text-sm hover:text-primary" href="/terms">Terms of Service</a>
             </div>
           </div>
           <div className="border-t border-[#e7e7f3] pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex flex-col items-center md:items-start gap-1">
-              <p className="text-text-muted text-xs">This SaaS product is currently in testing mode for learning and improvement purposes.</p>
-              <p className="text-text-muted text-sm">© 2026 QuickNotes . All rights reserved. Built by Thiyagu.</p>
-            </div>
-            <div className="flex items-center gap-1 text-xs text-text-muted">
-              <span className="w-2 h-2 rounded-full bg-green-500"></span>
-              Systems Operational
+              <p className="text-text-muted text-xs">The AI model powering QuickNotes is currently in beta. If you encounter any issues, please report them to help improve the product.</p>
+              <p className="text-text-muted text-sm">© 2026 QuickNotes. All rights reserved.</p>
+              <p className="text-text-muted text-xs">Independently built and maintained by Thiyagu.</p>
             </div>
           </div>
         </div>

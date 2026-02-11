@@ -115,7 +115,7 @@ export default function SignupPage() {
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8 flex flex-col items-center">
             <img 
-              src="/applogo.png" 
+              src="/applogo.png?v=3" 
               alt="QuickNotes Logo" 
               className="h-16 sm:h-20 md:h-24 w-auto object-contain mb-4"
             />
