@@ -52,7 +52,7 @@ A real-world ML system design project demonstrating:
 ### 4. Production-Ready Architecture
 - **Authentication**: Supabase Auth (Google OAuth, Email/Password)
 - **Database**: PostgreSQL with row-level security
-- **LLM Inference**: OpenRouter (free tier: deepseek-r1t2-chimera)
+- **LLM Inference**: OpenRouter (free tier: deepseek-r1-0528)
 - **Deployment**: Vercel (serverless, global CDN)
 - **Monitoring**: Error tracking, usage analytics
 
@@ -245,7 +245,7 @@ This project is a **practical ML system design** case study. See [docs/ML-SYSTEM
 | **What replaces training data?** | Prompt engineering templates (7 variants). |
 | **Data quality strategy?** | Instruction design + format templates. |
 | **Scalability approach?** | Multi-layer storage, async processing, rate limiting. |
-| **Cost strategy?** | Free LLM model (tngtech/deepseek), serverless compute. |
+| **Cost strategy?** | Free LLM model (deepseek/deepseek-r1-0528), serverless compute. |
 
 ---
 

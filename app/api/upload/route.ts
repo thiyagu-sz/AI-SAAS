@@ -367,7 +367,7 @@ async function callOpenRouterAPI(
           'X-Title': 'QuickNotes',
         },
         body: JSON.stringify({
-          model: 'tngtech/deepseek-r1t2-chimera:free',
+          model: 'deepseek/deepseek-r1-0528:free',
           messages,
           temperature: options.temperature || 0.3,
           max_tokens: options.maxTokens || 2000,

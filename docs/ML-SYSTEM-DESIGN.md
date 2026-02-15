@@ -83,7 +83,7 @@ Extraction Success  Boolean           Process completion    Audit trail
 - Character encoding: UTF-8 only
 
 **Cost Constraints**:
-- Model: `tngtech/deepseek-r1t2-chimera:free` (free tier)
+- Model: `deepseek/deepseek-r1-0528:free` (free tier)
 - No embedding generation by default (memory efficient)
 - Batch processing during off-peak hours possible
 
@@ -742,7 +742,7 @@ Step 5: Prompt Construction
                                     ↓
 Step 6: LLM API Call (OpenRouter)
 ├─ POST https://openrouter.ai/api/v1/chat/completions
-├─ Model: tngtech/deepseek-r1t2-chimera:free
+├─ Model: deepseek/deepseek-r1-0528:free
 ├─ Messages: [system, user]
 ├─ Temperature: 0.3
 ├─ Max_tokens: 2000

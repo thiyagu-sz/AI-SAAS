@@ -595,7 +595,7 @@ Focus on main topics suitable for exam preparation.
 Call OpenRouter API:
 POST https://openrouter.ai/api/v1/chat/completions
 {
-  "model": "deepseek/deepseek-r1-t2-chimera",
+  "model": "deepseek/deepseek-r1-0528:free",
   "messages": [{"role": "user", "content": prompt}],
   "stream": true
 }

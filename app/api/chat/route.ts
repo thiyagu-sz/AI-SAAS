@@ -170,14 +170,14 @@ async function streamChatResponse(
             };
             
             console.log(`🚀 Chat: Making OpenRouter request (attempt ${attempt}/${MAX_RETRIES})`);
-            console.log('  - Model: tngtech/deepseek-r1t2-chimera:free');
+            console.log('  - Model: deepseek/deepseek-r1-0528:free');
             
             // Make the streaming request
             response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
               method: 'POST',
               headers,
               body: JSON.stringify({
-                model: 'tngtech/deepseek-r1t2-chimera:free',
+                model: 'deepseek/deepseek-r1-0528:free',
                 messages: [
                   {
                     role: 'system',
@@ -363,14 +363,29 @@ REQUIRED MARKDOWN STRUCTURE:
                 }
                 
                 // Handle streaming response - check both delta and message formats
-                const content = parsed.choices?.[0]?.delta?.content || 
-                               parsed.choices?.[0]?.message?.content ||
-                               (parsed.choices?.[0]?.text);
+                const choice = parsed.choices?.[0];
+                const content = choice?.delta?.content || 
+                               choice?.message?.content ||
+                               choice?.text;
+                
+                // Check for finish_reason to properly end stream
+                const finishReason = choice?.finish_reason;
                 
                 if (content) {
                   controller.enqueue(
                     encoder.encode(`data: ${JSON.stringify({ content })}\n\n`)
                   );
+                }
+                
+                // End stream when we get finish_reason: "stop"
+                if (finishReason === 'stop') {
+                  console.log('🏁 Detected finish_reason: stop, ending stream');
+                  // Send sources at the end
+                  controller.enqueue(
+                    encoder.encode(`data: ${JSON.stringify({ sources })}\n\n`)
+                  );
+                  controller.close();
+                  return;
                 }
               } catch (parseError) {
                 // Skip invalid JSON - might be empty data lines or other non-JSON content
@@ -428,7 +443,7 @@ async function handleQuizGeneration(question: string): Promise<Response> {
       method: 'POST',
       headers,
       body: JSON.stringify({
-        model: 'tngtech/deepseek-r1t2-chimera:free',
+        model: 'deepseek/deepseek-r1-0528:free',
         messages: [
           {
             role: 'system',
